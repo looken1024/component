@@ -17,6 +17,7 @@ extends Object
 ## 类方法
 
 | 序号 |   方法 & 描述 |
+|------| --------------|
 |1 |   static <T> Optional<T> empty() 返回空的 Optional 实例。|
 |2 |  boolean equals(Object obj) 判断其他对象是否等于 Optional。 |
 |3|   Optional<T> filter(Predicate<? super <T> predicate) 如果值存在，并且这个值匹配给定的 predicate，返回一个Optional用以描述这个值，否则返回一个空的Optional。|
