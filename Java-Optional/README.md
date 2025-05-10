@@ -31,8 +31,7 @@ extends Object
 |11|  static <T> Optional<T> ofNullable(T value) 如果为非空，返回 Optional 描述的指定值，否则返回空的 Optional。|
 |12|  T orElse(T other) 如果存在该值，返回值， 否则返回 other。|
 |13|  T orElseGet(Supplier<? extends T> other) 如果存在该值，返回值， 否则触发 other，并返回 other 调用的结果。|
-|14|  <X extends Throwable> T orElseThrow(Supplier<? extends X> exceptionSupplier) |
-如果存在该值，返回包含的值，否则抛出由 Supplier 继承的异常|
+|14|  <X extends Throwable> T orElseThrow(Supplier<? extends X> exceptionSupplier) 如果存在该值，返回包含的值，否则抛出由 Supplier 继承的异常|
 |15|  String toString() 返回一个Optional的非空字符串，用来调试 |
 
 注意： 这些方法是从 java.lang.Object 类继承来的。
