@@ -154,6 +154,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * programming practices that are already so slow that this makes
      * little difference.)
      *
+     * 红黑树和链表的转化: 红黑树通常用的少
      * Because TreeNodes are about twice the size of regular nodes, we
      * use them only when bins contain enough nodes to warrant use
      * (see TREEIFY_THRESHOLD). And when they become too small (due to
@@ -179,6 +180,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * 8:    0.00000006
      * more: less than 1 in ten million
      *
+     * 通常红黑树的根节点是第一个节点，只有当通过迭代器remove后可能不是
      * The root of a tree bin is normally its first node.  However,
      * sometimes (currently only upon Iterator.remove), the root might
      * be elsewhere, but can be recovered following parent links
@@ -212,12 +214,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * avoid aliasing errors amid all of the twisty pointer operations.
      */
 
-    /**
+    /*
+     * 初始的容量必须是2的幂
      * The default initial capacity - MUST be a power of two.
      */
     static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka 16
 
     /**
+     * 最大容量
      * The maximum capacity, used if a higher value is implicitly specified
      * by either of the constructors with arguments.
      * MUST be a power of two <= 1<<30.
@@ -225,11 +229,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     static final int MAXIMUM_CAPACITY = 1 << 30;
 
     /**
+     * Load Factory
      * The load factor used when none specified in constructor.
      */
     static final float DEFAULT_LOAD_FACTOR = 0.75f;
 
     /**
+     * 当节点数超过8时会由链表转化为红黑树
      * The bin count threshold for using a tree rather than list for a
      * bin.  Bins are converted to trees when adding an element to a
      * bin with at least this many nodes. The value must be greater
@@ -240,6 +246,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     static final int TREEIFY_THRESHOLD = 8;
 
     /**
+     * 当节点数小于6时会由红黑树转为链表
      * The bin count threshold for untreeifying a (split) bin during a
      * resize operation. Should be less than TREEIFY_THRESHOLD, and at
      * most 6 to mesh with shrinkage detection under removal.
@@ -247,6 +254,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     static final int UNTREEIFY_THRESHOLD = 6;
 
     /**
+     * 当整体容量达到64时，才有可能出现链表转红黑树
      * The smallest table capacity for which bins may be treeified.
      * (Otherwise the table is resized if too many nodes in a bin.)
      * Should be at least 4 * TREEIFY_THRESHOLD to avoid conflicts
@@ -255,12 +263,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     static final int MIN_TREEIFY_CAPACITY = 64;
 
     /**
+     * 节点
      * Basic hash bin node, used for most entries.  (See below for
      * TreeNode subclass, and in LinkedHashMap for its Entry subclass.)
      */
     static class Node<K,V> implements Map.Entry<K,V> {
-        final int hash;
-        final K key;
+        final int hash; // 常量
+        final K key;    // 常量
         V value;
         Node<K,V> next;
 
@@ -275,16 +284,20 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         public final V getValue()      { return value; }
         public final String toString() { return key + "=" + value; }
 
+        // key和value都参与计算hashcode
+        // TODO：如果仅value变了，hashcode也会变，是否会影响在hash表中的位置
         public final int hashCode() {
             return Objects.hashCode(key) ^ Objects.hashCode(value);
         }
 
+        //TODO: 设置完value后返回旧值，意义是什么？
         public final V setValue(V newValue) {
             V oldValue = value;
             value = newValue;
             return oldValue;
         }
 
+        // 判断是否同一个节点
         public final boolean equals(Object o) {
             if (o == this)
                 return true;
@@ -298,6 +311,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /* ---------------- Static utilities -------------- */
 
     /**
+     * 如果key是null，hash值为0；
+     * 否则，将key的hashCode的高低位进行异或操作，重hash
+     *
      * Computes key.hashCode() and spreads (XORs) higher bits of hash
      * to lower.  Because the table uses power-of-two masking, sets of
      * hashes that vary only in bits above the current mask will
@@ -352,9 +368,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
+     * 计算当给定一个容量时，能满足的最小的2的幂次
      * Returns a power of two size for the given target capacity.
      */
     static final int tableSizeFor(int cap) {
+        // 在Java中，主要有三个位运算符：
+        // << 左移
+        // >> 带符号右移
+        // >>> 无符号右移
         int n = -1 >>> Integer.numberOfLeadingZeros(cap - 1);
         return (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
     }
@@ -362,6 +383,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /* ---------------- Fields -------------- */
 
     /**
+     * table的长度一定是2的幂次
      * The table, initialized on first use, and resized as
      * necessary. When allocated, length is always a power of two.
      * (We also tolerate length zero in some operations to allow
@@ -390,6 +412,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     transient int modCount;
 
     /**
+     * 下次扩容时的阈值（当大小达到容量*loadFactor）
      * The next size value at which to resize (capacity * load factor).
      *
      * @serial
@@ -401,6 +424,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     int threshold;
 
     /**
+     * LoadFactor: 0.75
      * The load factor for the hash table.
      *
      * @serial
@@ -410,6 +434,11 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /* ---------------- Public operations -------------- */
 
     /**
+     * HashMap的构造函数，指定初始容量和loadFactor
+     * 初始容量不能小于0，不能超过最大容量（如果超过了设置为最大容量）
+     * loadFactory不能小于等于0
+     * TODO: 如果loadFactory大于1会怎么样？不会报错
+     *
      * Constructs an empty {@code HashMap} with the specified initial
      * capacity and load factor.
      *
@@ -436,6 +465,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
+     * HashMap构造函数，指定初始容量
+     * loadFactor默认0.75
+     *
      * Constructs an empty {@code HashMap} with the specified initial
      * capacity and the default load factor (0.75).
      *
@@ -451,6 +483,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
+     * HashMap默认构造函数
+     * 使用默认的初始容量16
+     * loadFactor默认0.75
+     *
      * Constructs an empty {@code HashMap} with the default initial capacity
      * (16) and the default load factor (0.75).
      */
@@ -459,6 +495,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
+     * 创建一个默认初始容量16、loadFactor=0.75的HashMap来存储Map中的元素
+     *
      * Constructs a new {@code HashMap} with the same mappings as the
      * specified {@code Map}.  The {@code HashMap} is created with
      * default load factor (0.75) and an initial capacity sufficient to
@@ -492,6 +530,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 // Because of linked-list bucket constraints, we cannot
                 // expand all at once, but can reduce total resize
                 // effort by repeated doubling now vs later
+                //
+                // 扩容
                 while (s > threshold && table.length < MAXIMUM_CAPACITY)
                     resize();
             }
