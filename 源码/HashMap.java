@@ -545,6 +545,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
+     * 元素个数
+     *
      * Returns the number of key-value mappings in this map.
      *
      * @return the number of key-value mappings in this map
@@ -554,6 +556,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
+     * 元素为空，容量不一定为空
+     *
      * Returns {@code true} if this map contains no key-value mappings.
      *
      * @return {@code true} if this map contains no key-value mappings
@@ -585,6 +589,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
+     * 通过key查找value
+     *
      * Implements Map.get and related methods.
      *
      * @param key the key
@@ -592,6 +598,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      */
     final Node<K,V> getNode(Object key) {
         Node<K,V>[] tab; Node<K,V> first, e; int n, hash; K k;
+        // (n - 1) & (hash = hash(key)) : 将key的hash值对table长度取模，通过位运算
         if ((tab = table) != null && (n = tab.length) > 0 &&
             (first = tab[(n - 1) & (hash = hash(key))]) != null) {
             if (first.hash == hash && // always check first node
@@ -611,6 +618,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
+     * 查找key是否存在
+     *
      * Returns {@code true} if this map contains a mapping for the
      * specified key.
      *
@@ -623,6 +632,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
+     * 写入key-value
+     *
      * Associates the specified value with the specified key in this map.
      * If the map previously contained a mapping for the key, the old
      * value is replaced.
@@ -661,12 +672,15 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 ((k = p.key) == key || (key != null && key.equals(k))))
                 e = p;
             else if (p instanceof TreeNode)
+                // 往红黑树插入节点
                 e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
             else {
+                // 往链表插入节点
                 for (int binCount = 0; ; ++binCount) {
                     if ((e = p.next) == null) {
                         p.next = newNode(hash, key, value, null);
                         if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
+                            // 转红黑树，binCount起到一个计数的作用
                             treeifyBin(tab, hash);
                         break;
                     }
@@ -685,6 +699,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
         }
         ++modCount;
+        // 触发扩容
         if (++size > threshold)
             resize();
         afterNodeInsertion(evict);
@@ -775,11 +790,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
+     * 将原先的链表调整为红黑树
+     *
      * Replaces all linked nodes in bin at index for given hash unless
      * table is too small, in which case resizes instead.
      */
     final void treeifyBin(Node<K,V>[] tab, int hash) {
         int n, index; Node<K,V> e;
+        // hash表容量太小，没有达到调整红黑树的阈值
         if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY)
             resize();
         else if ((e = tab[index = (n - 1) & hash]) != null) {
@@ -812,6 +830,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
+     * 删除key-value
+     *
      * Removes the mapping for the specified key from this map if present.
      *
      * @param  key key whose mapping is to be removed from the map
@@ -847,8 +867,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 node = p;
             else if ((e = p.next) != null) {
                 if (p instanceof TreeNode)
+                    // 查找红黑树
                     node = ((TreeNode<K,V>)p).getTreeNode(hash, key);
                 else {
+                    // 查找链表
                     do {
                         if (e.hash == hash &&
                             ((k = e.key) == key ||
@@ -860,6 +882,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     } while ((e = e.next) != null);
                 }
             }
+            // 找到了节点
             if (node != null && (!matchValue || (v = node.value) == value ||
                                  (value != null && value.equals(v)))) {
                 if (node instanceof TreeNode)
@@ -878,6 +901,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
+     * 清空hash表
+     *
      * Removes all of the mappings from this map.
      * The map will be empty after this call returns.
      */
@@ -892,6 +917,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
+     * 是否存在指定value
+     * 可能存在多个，只要有一个就返回true
+     *
      * Returns {@code true} if this map maps one or more keys to the
      * specified value.
      *
@@ -903,6 +931,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         Node<K,V>[] tab; V v;
         if ((tab = table) != null && size > 0) {
             for (Node<K,V> e : tab) {
+                // TODO：这里有可能是红黑树吧？也是这么遍历？
                 for (; e != null; e = e.next) {
                     if ((v = e.value) == value ||
                         (value != null && value.equals(v)))
@@ -1162,6 +1191,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     // Overrides of JDK8 Map extension methods
 
     @Override
+    // 如果没找到key，返回预先给定的默认值
     public V getOrDefault(Object key, V defaultValue) {
         Node<K,V> e;
         return (e = getNode(key)) == null ? defaultValue : e.value;
