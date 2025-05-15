@@ -16,4 +16,6 @@ threadFactory：创建线程，代表怎么创建线程，线程属性
 
 handler：当队列和线程都满了拒绝策略
 
-![](./流程图.png)
+### 参考：
+
+https://www.jianshu.com/p/19c29960fc9d#comments
