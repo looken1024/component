@@ -911,7 +911,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
             for (;;) {
                 if (workerCountOf(c)
                     >= ((core ? corePoolSize : maximumPoolSize) & COUNT_MASK))
-                    return false;
+                    return false; //不开启线程
                 if (compareAndIncrementWorkerCount(c))
                     break retry;
                 c = ctl.get();  // Re-read ctl
@@ -1023,6 +1023,8 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
     }
 
     /**
+     * 去阻塞队列去拿
+     *
      * Performs blocking or timed wait for a task, depending on
      * current configuration settings, or returns null if this worker
      * must exit because of any of:
@@ -1055,6 +1057,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
             int wc = workerCountOf(c);
 
             // Are workers subject to culling?
+	    // 不允许核心线程回收 或者 线程数小于corePoolSize
             boolean timed = allowCoreThreadTimeOut || wc > corePoolSize;
 
             if ((wc > maximumPoolSize || (timed && timedOut))
@@ -1065,9 +1068,10 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
             }
 
             try {
+		// 到超时时间
                 Runnable r = timed ?
                     workQueue.poll(keepAliveTime, TimeUnit.NANOSECONDS) :
-                    workQueue.take();
+                    workQueue.take(); // 一直阻塞
                 if (r != null)
                     return r;
                 timedOut = true;
