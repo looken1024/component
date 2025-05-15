@@ -900,6 +900,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      */
     private boolean addWorker(Runnable firstTask, boolean core) {
         retry:
+	// 自旋操作
         for (int c = ctl.get();;) {
             // Check if queue empty only if necessary.
             if (runStateAtLeast(c, SHUTDOWN)
