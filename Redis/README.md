@@ -14,4 +14,70 @@
 
 解决方案：a）参数校验；b）缓存空对象；c）布隆过滤器；
 
+## 如何快速判断几十亿个数中是否存在某个数？
 
+使用位图！
+
+在redis-cli中设置位图
+
+```shell
+62.234.20.62:8888> setbit test_bit 123 1
+(integer) 0
+```
+
+pom.xml
+
+```shell
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.example</groupId>
+    <artifactId>untitled</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <maven.compiler.source>22</maven.compiler.source>
+        <maven.compiler.target>22</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson</artifactId>
+            <version>3.16.4</version> <!-- 使用最新稳定版本 -->
+        </dependency>
+    </dependencies>
+</project>
+```
+
+TestBit.java
+
+```java
+import org.redisson.Redisson;
+import org.redisson.api.RBitSet;
+import org.redisson.api.RedissonClient;
+import org.redisson.config.Config;
+
+public class TestBit {
+
+    public static void main(String[] args) {
+        Config config = new Config();
+        config.useSingleServer()
+                .setAddress("redis://62.234.20.62:8888")
+                .setPassword("*************"); // 如果有密码
+
+        RedissonClient redissonClient = Redisson.create(config);
+        RBitSet bitSet = redissonClient.getBitSet("test_bit");
+        if (bitSet.get(123)) {
+            System.out.println("123 exists");
+        }
+        else {
+            System.out.println("123 does not exist");
+        }
+    }
+}
+```
