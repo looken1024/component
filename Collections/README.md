@@ -92,4 +92,56 @@ Collections.fill(s, null);
 System.out.println(s);
 ```
 
+## 最大最小值
+
+```java
+List<String> s = new ArrayList<>();
+s.add("1");
+s.add("2");
+s.add("1");
+s.add("4");
+s.add("5");
+String res = Collections.min(s);
+System.out.println(res);
+```
+
+## 反转
+
+```java
+List<String> s = new ArrayList<>();
+s.add("1");
+s.add("2");
+s.add("1");
+s.add("4");
+s.add("5");
+Collections.reverse(s);
+System.out.println(s);
+```
+
+## 旋转
+
+```java
+List<String> s = new ArrayList<>();
+s.add("1");
+s.add("2");
+s.add("1");
+s.add("4");
+s.add("5");
+Collections.rotate(s, -1);
+System.out.println(s);
+```
+
+## 交换不同位置的元素
+
+```java
+List<String> s = new ArrayList<>();
+s.add("1");
+s.add("2");
+s.add("1");
+s.add("4");
+s.add("5");
+Collections.swap(s, 1, 2);
+System.out.println(s);
+```
+
 
