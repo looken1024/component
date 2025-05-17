@@ -356,23 +356,23 @@ public class App {
 
 ### 关键点说明
 
-配置文件：
+#### 配置文件：
 
 mybatis-config.xml：核心配置，包含数据源和映射文件位置。
 
 UserMapper.xml：SQL 映射，通过 namespace 与接口绑定。
 
-接口与 XML 映射：
+#### 接口与 XML 映射：
 
 Mapper 接口中的方法名和参数需与 XML 中的id和parameterType对应。
 
 resultType指定返回类型（全限定类名或别名）。
 
-SQL 参数：
+#### SQL 参数：
 
 #{}语法用于预编译 SQL，防止 SQL 注入。
 
-事务管理：
+#### 事务管理：
 
 默认手动提交事务，需调用session.commit()或session.rollback()。
 
