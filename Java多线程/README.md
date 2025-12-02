@@ -2,6 +2,8 @@
 
 解决方案一：Join方法实现
 
+实现简单但线程间耦合性较高。
+
 ```java
 Thread t1 = new Thread(() -> {
     System.out.println("T1执行");
@@ -34,6 +36,8 @@ t3.start();
 解决方案二：使用CountDownLatch实现
 
 使用计数器机制实现一次性的线程同步。每个线程完成后调用countDown()，后续线程通过await()等待计数归零。这种方法特别适合一次性的等待场景，代码结构清晰且易于理解。
+
+适合一次性等待场景。
 
 ```java
 CountDownLatch latch1 = new CountDownLatch(1);
@@ -72,6 +76,8 @@ t3.start();
 解决方案三：Semaphore实现
 
 使用信号量控制线程执行顺序，通过初始许可数的设置，精确控制线程的执行顺序，这种方式适合需要精确控制并发访问资源数量的场景，实现了更灵活的线程协调。
+
+更加灵活可以控制并发数量。
 
 ```java
 Semaphore s1 = new Semaphore(1);
