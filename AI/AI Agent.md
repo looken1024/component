@@ -51,6 +51,20 @@ API：
 
     提示词 -> POST -> API -> 回答
 
+n8n：无需代码编写、可视化、节点式，搭建工作流，Agent的平台，德国 19年开始，开源，入门快
+
+本地安装n8n：
+    1、Docket：桌面端 Resources->Disk image location，选定位置
+    2、shell：docker volume create n8n_data
+              docker run -d --name n8n --restart unless-stopped -p 5678:5678 -v n8n_data:/home/node/.n8n docker.n8n.io/n8nio/n8n
+
+        -d                            # 后台运行（detached mode）
+        --name n8n                    # 容器命名为 "n8n"
+        --restart unless-stopped      # 自动重启策略（除非手动停止）
+        -p 5678:5678                  # 端口映射（主机端口:容器端口）
+        -v n8n_data:/home/node/.n8n   # 挂载数据卷到容器内的n8n数据目录
+        docker.n8n.io/n8nio/n8n       # 使用的n8n官方镜像
+
 
 ### Agent实战
 
