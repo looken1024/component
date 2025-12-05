@@ -99,7 +99,34 @@ DeepSeek + 剪映
 
 剪映：AI成片
 
+AI素材，立即生成，替换素材
 
+
+### 公众号文章
+
+DeepSeek + MarkDown
+
+我做了一个教育的公众号，请你参考爆款公众号文章的风格，帮我把【孩子成绩不好】这个选题写成一篇10w+阅读量的博文，字数控制在1500-2000左右，你直接把正文输出给我，不要说任何多余的话，只要正文
+
+请把上面的文章，帮我用公众号的风格，做个排版，需要有大小标题，重点加粗，不需要加emoji！用Markdown格式输出给我。
+
+wechat.bmpi.dev
+
+
+### 批量生图
+
+DeepSeek + Autojourney + Midjourney
+
+我需要给上面额文章配图，请你帮我设计一下配图方案，并直接发我midjourney的画图提示词，用表格的格式发我，只用一列表格。
+
+浏览器 —> 应用商店 -> autojourney插件 -> discard频道 -> 发送给auto journey插件 -> 批量生图
+
+discard.com
+
+
+### 原创歌曲
+
+DeepSeek + Suno
 
 
 
