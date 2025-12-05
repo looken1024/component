@@ -102,5 +102,24 @@ n8n：无需代码编写、可视化、节点式，搭建工作流，Agent的平
         
 
 
+## Dify制作
+
+1、创建空白应用 选择Agent
+2、点击工具，选择金融->股票查询
+
+编排：
+    提示词：如果用户是问股票相关的事，就调用股票查询工具查查相关信息，再给出用户投资简易，如果不是股票类的问题，就用贴吧老哥的预期嘲讽他。
+
+
+## 借Siri调用DeepSeek
+
+1、新建快捷指令：听写文本，语言设置为中文
+2、获取URL内容：URL替换为实际的url，POST
+    头部：Content-Type：Application/json、Authoritarian
+    请求体：JSON->文本 model、数组 message role content选择变量->听写的文本
+3、获取词典值：choices.1.message.content.content
+4、朗读文本
+5、显示结果
+6、添加快捷方式到桌面
 
 
