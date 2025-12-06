@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek API 聊天工具（带CORS代理）</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background-color: #f0f2f5;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            color: white;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        @media (min-width: 768px) {
+            .container {
+                flex-direction: row;
+            }
+        }
+        
+        .sidebar {
+            background-color: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            flex: 1;
+        }
+        
+        .chat-container {
+            background-color: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-title i {
+            color: #667eea;
+        }
+        
+        .api-key-container {
+            margin-bottom: 25px;
+        }
+        
+        input[type="text"], input[type="password"], select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5eb;
+            border-radius: 8px;
+            font-size: 16px;
+            background-color: white;
+            color: #333;
+            transition: all 0.3s;
+            margin-bottom: 10px;
+        }
+        
+        input[type="text"]:focus, input[type="password"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .model-selector {
+            margin-bottom: 25px;
+        }
+        
+        .chat-history {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 500px;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+        }
+        
+        .message {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 12px;
+            max-width: 85%;
+            word-wrap: break-word;
+        }
+        
+        .user-message {
+            background-color: #e3f2fd;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .ai-message {
+            background-color: #f5f5f5;
+            margin-right: auto;
+            border-bottom-left-radius: 4px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .message-header {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .user-message .message-header {
+            color: #1976d2;
+        }
+        
+        .ai-message .message-header {
+            color: #5a67d8;
+        }
+        
+        .message-content {
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+        
+        .input-area {
+            display: flex;
+            gap: 10px;
+        }
+        
+        #message-input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e1e5eb;
+            border-radius: 8px;
+            font-size: 16px;
+            resize: none;
+            height: 60px;
+            font-family: inherit;
+        }
+        
+        #send-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        #send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        #send-btn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .status {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+        }
+        
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+        
+        .api-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 25px;
+            font-size: 14px;
+            color: #555;
+        }
+        
+        .api-info h4 {
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .api-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        
+        .api-status span {
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .connected .status-indicator {
+            background-color: #28a745;
+        }
+        
+        .disconnected .status-indicator {
+            background-color: #dc3545;
+        }
+        
+        .btn {
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            font-weight: 500;
+        }
+        
+        .btn-secondary {
+            background-color: #f1f3f9;
+            color: #333;
+            border: 1px solid #e1e5eb;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #e8ebf3;
+        }
+        
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 12px 20px;
+            background-color: #f5f5f5;
+            border-radius: 12px;
+            border-bottom-left-radius: 4px;
+            width: fit-content;
+            margin-right: auto;
+            border-left: 4px solid #667eea;
+            margin-bottom: 20px;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #667eea;
+            opacity: 0.6;
+            animation: typingAnimation 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+        
+        .typing-dot:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+        
+        @keyframes typingAnimation {
+            0%, 80%, 100% {
+                transform: scale(0.8);
+                opacity: 0.6;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .model-info {
+            margin-top: 15px;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .endpoint-container {
+            margin-bottom: 20px;
+        }
+        
+        #custom-endpoint {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>DeepSeek API 聊天工具（带CORS代理）</h1>
+        <p>通过代理服务器调用DeepSeek API，解决CORS限制问题</p>
+    </div>
+    
+    <div class="container">
+        <div class="sidebar">
+            <div class="section-title">
+                <span>⚙️</span> API 配置
+            </div>
+            
+            <div class="api-key-container">
+                <label for="api-key">DeepSeek API Key:</label>
+                <input type="password" id="api-key" placeholder="请输入您的DeepSeek API密钥">
+                <button id="toggle-visibility" class="btn btn-secondary" style="width: 100%; margin-top: 5px;">显示/隐藏API密钥</button>
+                
+                <div class="api-status">
+                    <span id="api-status-text" class="disconnected">
+                        <span class="status-indicator"></span>
+                        API密钥未设置
+                    </span>
+                </div>
+            </div>
+            
+            <div class="endpoint-container">
+                <label for="api-endpoint">API端点:</label>
+                <select id="api-endpoint">
+                    <option value="direct">直接调用: https://api.deepseek.com/v1/chat/completions</option>
+                    <option value="cors-proxy">使用CORS代理: https://corsproxy.io/?https://api.deepseek.com/v1/chat/completions</option>
+                    <option value="allorigins">使用AllOrigins代理: https://api.allorigins.win/raw?url=https://api.deepseek.com/v1/chat/completions</option>
+                    <option value="custom">自定义代理...</option>
+                </select>
+                <input type="text" id="custom-endpoint" placeholder="输入自定义代理URL" style="display:none; margin-top:10px;">
+                <div class="model-info">
+                    如果直接调用失败，请尝试使用CORS代理
+                </div>
+            </div>
+            
+            <div class="model-selector">
+                <label for="model-select">选择模型:</label>
+                <select id="model-select">
+                    <option value="deepseek-chat">deepseek-chat</option>
+                    <option value="deepseek-coder">deepseek-coder</option>
+                </select>
+                <div class="model-info">
+                    推荐使用 deepseek-chat 进行对话
+                </div>
+            </div>
+            
+            <div class="api-info">
+                <h4>关于CORS代理</h4>
+                <p>由于浏览器安全限制，直接从前端调用API可能被阻止。</p>
+                <p>代理服务器可以帮助转发请求，解决CORS问题。</p>
+                <p><strong>注意：</strong>代理服务器可能会看到您的API密钥和对话内容，请谨慎使用。</p>
+            </div>
+            
+            <div class="controls">
+                <button id="clear-chat-btn" class="btn btn-secondary" style="flex:1;">
+                    清空对话
+                </button>
+                <button id="test-api-btn" class="btn btn-secondary" style="flex:1;">
+                    测试连接
+                </button>
+            </div>
+        </div>
+        
+        <div class="chat-container">
+            <div class="section-title">
+                <span>💬</span> 对话窗口
+            </div>
+            
+            <div class="chat-history" id="chat-history">
+                <div class="message ai-message">
+                    <div class="message-header">
+                        <span>🤖</span> DeepSeek AI
+                    </div>
+                    <div class="message-content">
+                        您好！我是DeepSeek AI助手。请先在左侧配置您的API密钥和代理选项。
+                        
+                        如果直接调用API遇到CORS问题，请选择CORS代理选项。
+                        
+                        推荐步骤：
+                        1. 输入您的DeepSeek API密钥
+                        2. 选择API端点（先尝试直接调用，如果失败再尝试代理）
+                        3. 点击"测试连接"验证配置
+                        4. 在下方输入框发送消息
+                    </div>
+                </div>
+            </div>
+            
+            <div class="input-area">
+                <textarea id="message-input" placeholder="输入您的消息... (按Shift+Enter换行，按Enter发送)"></textarea>
+                <button id="send-btn">发送</button>
+            </div>
+            
+            <div class="status disconnected" id="connection-status">
+                <span id="status-text">请先配置API密钥以开始对话</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>DeepSeek API 聊天工具（带CORS代理） | 真实API调用，非模拟</p>
+        <p>注意：代理服务器仅用于解决CORS问题，请勿用于敏感对话</p>
+    </div>
+
+    <script>
+        // 初始化变量
+        let chatHistory = [];
+        let currentModel = 'deepseek-chat';
+        let apiKey = '';
+        let isConnected = false;
+        let conversationContext = [];
+        
+        // DOM元素
+        const modelSelect = document.getElementById('model-select');
+        const apiKeyInput = document.getElementById('api-key');
+        const apiEndpointSelect = document.getElementById('api-endpoint');
+        const customEndpointInput = document.getElementById('custom-endpoint');
+        const chatHistoryElement = document.getElementById('chat-history');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-btn');
+        const connectionStatus = document.getElementById('connection-status');
+        const statusText = document.getElementById('status-text');
+        const apiStatusText = document.getElementById('api-status-text');
+        const testApiBtn = document.getElementById('test-api-btn');
+        const clearChatBtn = document.getElementById('clear-chat-btn');
+        const toggleVisibilityBtn = document.getElementById('toggle-visibility');
+        
+        // 端点映射
+        const endpointMap = {
+            'direct': 'https://api.deepseek.com/v1/chat/completions',
+            'cors-proxy': 'https://corsproxy.io/?https://api.deepseek.com/v1/chat/completions',
+            'allorigins': 'https://api.allorigins.win/raw?url=https://api.deepseek.com/v1/chat/completions',
+            'custom': ''
+        };
+        
+        // 获取当前端点
+        function getCurrentEndpoint() {
+            const selected = apiEndpointSelect.value;
+            
+            if (selected === 'custom') {
+                return customEndpointInput.value;
+            }
+            
+            return endpointMap[selected];
+        }
+        
+        // 初始化事件监听器
+        function initEventListeners() {
+            // 模型选择变化
+            modelSelect.addEventListener('change', function() {
+                currentModel = this.value;
+                checkConnection();
+            });
+            
+            // API密钥输入变化
+            apiKeyInput.addEventListener('input', function() {
+                apiKey = this.value.trim();
+                checkConnection();
+            });
+            
+            // 端点选择变化
+            apiEndpointSelect.addEventListener('change', function() {
+                if (this.value === 'custom') {
+                    customEndpointInput.style.display = 'block';
+                } else {
+                    customEndpointInput.style.display = 'none';
+                }
+                checkConnection();
+            });
+            
+            // 自定义端点输入变化
+            customEndpointInput.addEventListener('input', function() {
+                checkConnection();
+            });
+            
+            // 切换API密钥可见性
+            toggleVisibilityBtn.addEventListener('click', function() {
+                const type = apiKeyInput.getAttribute('type');
+                if (type === 'password') {
+                    apiKeyInput.setAttribute('type', 'text');
+                    this.textContent = '隐藏API密钥';
+                } else {
+                    apiKeyInput.setAttribute('type', 'password');
+                    this.textContent = '显示API密钥';
+                }
+            });
+            
+            // 发送消息
+            sendButton.addEventListener('click', sendMessage);
+            
+            // 输入框键盘事件
+            messageInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            // 测试API连接
+            testApiBtn.addEventListener('click', testApiConnection);
+            
+            // 清空聊天记录
+            clearChatBtn.addEventListener('click', clearChatHistory);
+            
+            // 页面加载时检查本地存储
+            window.addEventListener('load', loadFromLocalStorage);
+        }
+        
+        // 检查连接状态
+        function checkConnection() {
+            const hasApiKey = apiKey.length > 0;
+            const endpoint = getCurrentEndpoint();
+            const hasEndpoint = endpoint && endpoint.trim().length > 0;
+            
+            if (hasApiKey && apiKey.startsWith('sk-') && hasEndpoint) {
+                isConnected = true;
+                apiStatusText.className = 'connected';
+                apiStatusText.innerHTML = `<span class="status-indicator"></span> API配置正确`;
+                connectionStatus.className = 'status connected';
+                statusText.textContent = `DeepSeek ${currentModel} 已准备就绪`;
+                sendButton.disabled = false;
+            } else if (hasApiKey && !apiKey.startsWith('sk-')) {
+                isConnected = false;
+                apiStatusText.className = 'disconnected';
+                apiStatusText.innerHTML = `<span class="status-indicator"></span> API密钥格式不正确`;
+                connectionStatus.className = 'status disconnected';
+                statusText.textContent = 'API密钥应以"sk-"开头，请检查您的密钥';
+                sendButton.disabled = true;
+            } else if (!hasApiKey) {
+                isConnected = false;
+                apiStatusText.className = 'disconnected';
+                apiStatusText.innerHTML = `<span class="status-indicator"></span> API密钥未设置`;
+                connectionStatus.className = 'status disconnected';
+                statusText.textContent = '请输入您的DeepSeek API密钥';
+                sendButton.disabled = true;
+            } else if (!hasEndpoint) {
+                isConnected = false;
+                apiStatusText.className = 'disconnected';
+                apiStatusText.innerHTML = `<span class="status-indicator"></span> API端点未设置`;
+                connectionStatus.className = 'status disconnected';
+                statusText.textContent = '请选择或输入API端点';
+                sendButton.disabled = true;
+            }
+            
+            // 保存到本地存储
+            saveToLocalStorage();
+        }
+        
+        // 测试API连接
+        async function testApiConnection() {
+            if (!apiKey) {
+                alert('请输入API密钥');
+                return;
+            }
+            
+            if (!apiKey.startsWith('sk-')) {
+                alert('API密钥格式不正确，应以"sk-"开头');
+                return;
+            }
+            
+            const endpoint = getCurrentEndpoint();
+            if (!endpoint) {
+                alert('请选择或输入API端点');
+                return;
+            }
+            
+            // 显示测试状态
+            connectionStatus.className = 'status disconnected';
+            statusText.textContent = '正在测试API连接...';
+            sendButton.disabled = true;
+            
+            try {
+                // 测试请求
+                const testResponse = await callDeepSeekAPI([
+                    { role: "user", content: "请回复一个简单的'连接测试成功'消息，不需要其他内容。" }
+                ], true);
+                
+                if (testResponse) {
+                    connectionStatus.className = 'status connected';
+                    statusText.textContent = `✅ 连接测试成功！DeepSeek ${currentModel} 已就绪`;
+                    sendButton.disabled = false;
+                    
+                    // 添加测试成功的消息
+                    addMessage('ai', '✅ 连接测试成功！我已经准备好为您提供帮助了。有什么问题想要咨询吗？');
+                    
+                    // 保存配置到本地存储
+                    saveToLocalStorage();
+                }
+            } catch (error) {
+                connectionStatus.className = 'status disconnected';
+                statusText.textContent = `❌ 连接测试失败: ${error.message}`;
+                sendButton.disabled = true;
+                
+                // 添加测试失败的消息
+                let errorMsg = `❌ 连接测试失败: ${error.message}`;
+                
+                // 根据错误类型提供建议
+                if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+                    errorMsg += '\n\n建议：\n1. 尝试切换不同的CORS代理选项\n2. 安装CORS解除浏览器扩展\n3. 检查网络连接';
+                } else if (error.message.includes('401') || error.message.includes('权限')) {
+                    errorMsg += '\n\n建议：\n1. 检查API密钥是否正确\n2. 确认API密钥是否有足够的权限';
+                }
+                
+                addMessage('ai', errorMsg);
+            }
+        }
+        
+        // 调用DeepSeek API
+        async function callDeepSeekAPI(messages, isTest = false) {
+            const endpoint = getCurrentEndpoint();
+            
+            const requestBody = {
+                model: currentModel,
+                messages: messages,
+                max_tokens: 2000,
+                temperature: 0.7,
+                stream: false
+            };
+            
+            // 对于代理端点，需要特殊处理请求
+            let finalEndpoint = endpoint;
+            let headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+                'Accept': 'application/json'
+            };
+            
+            // 处理不同的代理类型
+            if (endpoint.includes('corsproxy.io')) {
+                // corsproxy.io 需要将请求体放在URL中
+                finalEndpoint = endpoint;
+                // corsproxy.io 自动处理CORS，不需要特殊头
+            } else if (endpoint.includes('allorigins.win')) {
+                // allorigins.win 代理
+                finalEndpoint = endpoint;
+            }
+            
+            try {
+                const response = await fetch(finalEndpoint, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (!response.ok) {
+                    let errorMessage = `HTTP错误: ${response.status}`;
+                    
+                    try {
+                        const errorData = await response.json();
+                        if (errorData.error && errorData.error.message) {
+                            errorMessage = errorData.error.message;
+                        }
+                    } catch (e) {
+                        // 如果无法解析JSON，使用状态文本
+                        errorMessage = `${response.status}: ${response.statusText}`;
+                    }
+                    
+                    throw new Error(errorMessage);
+                }
+                
+                const data = await response.json();
+                
+                if (isTest) {
+                    return data;
+                }
+                
+                if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+                    return data.choices[0].message.content;
+                } else {
+                    throw new Error('API响应格式不正确');
+                }
+            } catch (error) {
+                // 如果是网络错误，提供更友好的提示
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    throw new Error('网络错误：无法连接到API。请检查网络连接或尝试不同的代理选项');
+                }
+                throw error;
+            }
+        }
+        
+        // 发送消息
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            
+            if (!message) {
+                alert('请输入消息内容');
+                return;
+            }
+            
+            if (!isConnected) {
+                alert('请先配置有效的API密钥和端点');
+                return;
+            }
+            
+            // 移除欢迎消息
+            const welcomeMsg = document.querySelector('.welcome-message');
+            if (welcomeMsg) {
+                welcomeMsg.remove();
+            }
+            
+            // 添加用户消息到聊天记录
+            addMessage('user', message);
+            
+            // 清空输入框
+            messageInput.value = '';
+            
+            // 添加到对话上下文
+            conversationContext.push({ role: "user", content: message });
+            
+            // 限制上下文长度，避免token超限
+            if (conversationContext.length > 10) {
+                conversationContext = conversationContext.slice(-10);
+            }
+            
+            // 显示"正在输入"状态
+            showTypingIndicator();
+            
+            try {
+                // 调用DeepSeek API
+                const aiResponse = await callDeepSeekAPI(conversationContext);
+                
+                // 添加到对话上下文
+                conversationContext.push({ role: "assistant", content: aiResponse });
+                
+                // 添加AI响应到聊天记录
+                addMessage('ai', aiResponse);
+            } catch (error) {
+                // 移除"正在输入"状态
+                hideTypingIndicator();
+                
+                // 添加错误消息
+                let errorMsg = `❌ API调用失败: ${error.message}`;
+                
+                // 根据错误类型提供建议
+                if (error.message.includes('CORS') || error.message.includes('网络错误')) {
+                    errorMsg += '\n\n建议：\n1. 尝试切换不同的CORS代理选项\n2. 安装CORS解除浏览器扩展\n3. 检查网络连接';
+                } else if (error.message.includes('401') || error.message.includes('权限')) {
+                    errorMsg += '\n\n建议：\n1. 检查API密钥是否正确\n2. 确认API密钥是否有足够的权限\n3. 确认API密钥是否已激活';
+                } else if (error.message.includes('429')) {
+                    errorMsg += '\n\n建议：\n1. 请求过于频繁，请稍后再试\n2. 检查API使用额度是否已用完';
+                }
+                
+                addMessage('ai', errorMsg);
+                
+                console.error('API调用错误:', error);
+            }
+            
+            // 保存到本地存储
+            saveToLocalStorage();
+        }
+        
+        // 显示"正在输入"状态
+        function showTypingIndicator() {
+            const typingElement = document.createElement('div');
+            typingElement.className = 'typing-indicator';
+            typingElement.id = 'typing-indicator';
+            typingElement.innerHTML = `
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <span style="margin-left: 8px; color: #666; font-size: 0.9rem;">DeepSeek ${currentModel} 正在思考...</span>
+            `;
+            
+            chatHistoryElement.appendChild(typingElement);
+            chatHistoryElement.scrollTop = chatHistoryElement.scrollHeight;
+        }
+        
+        // 隐藏"正在输入"状态
+        function hideTypingIndicator() {
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+        
+        // 添加消息到聊天界面
+        function addMessage(sender, content) {
+            // 先隐藏"正在输入"状态
+            hideTypingIndicator();
+            
+            const messageId = Date.now();
+            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            // 保存到历史记录
+            chatHistory.push({
+                id: messageId,
+                sender: sender,
+                content: content,
+                timestamp: timestamp,
+                model: sender === 'ai' ? currentModel : null
+            });
+            
+            // 创建消息元素
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${sender === 'user' ? 'user-message' : 'ai-message'}`;
+            
+            const senderName = sender === 'user' ? '您' : `DeepSeek ${currentModel}`;
+            
+            messageElement.innerHTML = `
+                <div class="message-header">
+                    <span>${sender === 'user' ? '👤' : '🤖'}</span> ${senderName}
+                    <span style="margin-left: auto; font-size: 12px; color: #999;">${timestamp}</span>
+                </div>
+                <div class="message-content">${formatMessageContent(content)}</div>
+            `;
+            
+            // 添加到聊天历史
+            chatHistoryElement.appendChild(messageElement);
+            
+            // 滚动到底部
+            chatHistoryElement.scrollTop = chatHistoryElement.scrollHeight;
+        }
+        
+        // 格式化消息内容
+        function formatMessageContent(content) {
+            // 将换行转换为<br>
+            let formatted = content.replace(/\n/g, '<br>');
+            
+            // 简单Markdown格式转换
+            // 加粗：**文本** -> <strong>文本</strong>
+            formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // 代码：`代码` -> <code>代码</code>
+            formatted = formatted.replace(/`(.*?)`/g, '<code>$1</code>');
+            
+            return formatted;
+        }
+        
+        // 清空聊天记录
+        function clearChatHistory() {
+            if (confirm('确定要清空所有聊天记录吗？此操作不可撤销。')) {
+                chatHistory = [];
+                conversationContext = [];
+                
+                // 清空聊天界面
+                chatHistoryElement.innerHTML = `
+                    <div class="message ai-message">
+                        <div class="message-header">
+                            <span>🤖</span> DeepSeek AI
+                        </div>
+                        <div class="message-content">
+                            对话记录已清空。请在下方的输入框中输入您的问题。
+                        </div>
+                    </div>
+                `;
+                
+                // 保存到本地存储
+                saveToLocalStorage();
+            }
+        }
+        
+        // 保存到本地存储
+        function saveToLocalStorage() {
+            const data = {
+                chatHistory: chatHistory,
+                currentModel: currentModel,
+                apiKey: apiKey,
+                conversationContext: conversationContext,
+                endpoint: apiEndpointSelect.value,
+                customEndpoint: customEndpointInput.value
+            };
+            localStorage.setItem('deepseekChatData', JSON.stringify(data));
+        }
+        
+        // 从本地存储加载
+        function loadFromLocalStorage() {
+            const savedData = localStorage.getItem('deepseekChatData');
+            
+            if (savedData) {
+                try {
+                    const data = JSON.parse(savedData);
+                    
+                    // 恢复模型选择
+                    if (data.currentModel) {
+                        currentModel = data.currentModel;
+                        modelSelect.value = currentModel;
+                    }
+                    
+                    // 恢复API密钥
+                    if (data.apiKey) {
+                        apiKey = data.apiKey;
+                        apiKeyInput.value = apiKey;
+                    }
+                    
+                    // 恢复端点选择
+                    if (data.endpoint) {
+                        apiEndpointSelect.value = data.endpoint;
+                        if (data.endpoint === 'custom') {
+                            customEndpointInput.style.display = 'block';
+                        }
+                    }
+                    
+                    // 恢复自定义端点
+                    if (data.customEndpoint) {
+                        customEndpointInput.value = data.customEndpoint;
+                    }
+                    
+                    // 恢复对话上下文
+                    if (data.conversationContext) {
+                        conversationContext = data.conversationContext;
+                    }
+                    
+                    // 恢复聊天记录
+                    if (data.chatHistory && data.chatHistory.length > 0) {
+                        chatHistory = data.chatHistory;
+                        
+                        // 清空当前聊天界面
+                        chatHistoryElement.innerHTML = '';
+                        
+                        // 重新添加消息
+                        chatHistory.forEach(msg => {
+                            const messageElement = document.createElement('div');
+                            messageElement.className = `message ${msg.sender === 'user' ? 'user-message' : 'ai-message'}`;
+                            
+                            const senderName = msg.sender === 'user' ? '您' : `DeepSeek ${msg.model || currentModel}`;
+                            
+                            messageElement.innerHTML = `
+                                <div class="message-header">
+                                    <span>${msg.sender === 'user' ? '👤' : '🤖'}</span> ${senderName}
+                                    <span style="margin-left: auto; font-size: 12px; color: #999;">${msg.timestamp}</span>
+                                </div>
+                                <div class="message-content">${formatMessageContent(msg.content)}</div>
+                            `;
+                            
+                            chatHistoryElement.appendChild(messageElement);
+                        });
+                    }
+                    
+                    // 检查连接状态
+                    checkConnection();
+                    
+                } catch (e) {
+                    console.error('加载本地存储数据失败:', e);
+                }
+            }
+        }
+        
+        // 初始化应用
+        function initApp() {
+            initEventListeners();
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
