@@ -122,13 +122,58 @@
         }
         
         function copyToClipboard() {
-            const textToCopy = output.innerText;
-            navigator.clipboard.writeText(textToCopy).then(() => {
+            // 获取要复制的HTML内容
+            const htmlToCopy = output.innerHTML;
+
+            // 创建一个临时的div来存储原始HTML，用于复制HTML格式
+            const tempDiv = document.createElement('div');
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.left = '-9999px';
+            tempDiv.style.whiteSpace = 'pre-wrap';
+            tempDiv.innerHTML = htmlToCopy;
+            document.body.appendChild(tempDiv);
+
+            // 获取纯文本内容（用于备用）
+            const textToCopy = tempDiv.innerText || tempDiv.textContent;
+
+            // 创建一个临时textarea元素用于复制纯文本
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            textarea.style.position = 'absolute';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+
+            // 创建一个包含HTML和纯文本的ClipboardItem
+            const htmlBlob = new Blob([htmlToCopy], { type: 'text/html' });
+            const textBlob = new Blob([textToCopy], { type: 'text/plain' });
+
+            const data = [
+                new ClipboardItem({
+                    'text/html': htmlBlob,
+                    'text/plain': textBlob
+                })
+            ];
+
+            // 尝试使用新的Clipboard API（支持复制HTML格式）
+            navigator.clipboard.write(data).then(() => {
                 status.classList.add('show');
                 setTimeout(() => status.classList.remove('show'), 2000);
             }).catch(err => {
-                console.error('复制失败:', err);
-                alert('复制失败，请手动选择文本复制');
+                // 如果新的API失败，回退到旧的复制方法（纯文本）
+                textarea.select();
+                textarea.setSelectionRange(0, 99999);
+                document.execCommand('copy');
+
+                status.classList.add('show');
+                status.textContent = '已复制纯文本到剪贴板';
+                setTimeout(() => {
+                    status.classList.remove('show');
+                    status.textContent = '已复制到剪贴板';
+                }, 2000);
+            }).finally(() => {
+                // 清理临时元素
+                document.body.removeChild(tempDiv);
+                document.body.removeChild(textarea);
             });
         }
         
