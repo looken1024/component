@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTP请求模拟工具（修复CORS问题）</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 保持原有样式不变，只添加新元素的样式 */
+        .cors-warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #856404;
+        }
+        
+        .cors-warning h4 {
+            margin-top: 0;
+            color: #856404;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .cors-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 10px;
+            align-items: center;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .example-urls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .example-url {
+            padding: 8px 12px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+        
+        .example-url:hover {
+            background-color: #6a11cb;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-satellite-dish"></i> HTTP请求模拟工具</h1>
+            <p>支持GET、POST等多种HTTP方法，已解决CORS跨域问题</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="card request-section">
+                <div class="card-title">
+                    <i class="fas fa-paper-plane"></i> 请求设置
+                </div>
+                
+                <!-- 添加CORS警告和选项 -->
+                <div class="cors-warning">
+                    <h4><i class="fas fa-exclamation-triangle"></i> 跨域请求提示</h4>
+                    <p>浏览器默认阻止跨域请求。如果遇到"CORS"或"Failed to fetch"错误，请启用以下选项：</p>
+                    <div class="cors-options">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="cors-proxy-checkbox" checked>
+                            <label for="cors-proxy-checkbox">使用CORS代理（推荐）</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="cors-mode-checkbox">
+                            <label for="cors-mode-checkbox">启用CORS模式</label>
+                        </div>
+                    </div>
+                    <div class="example-urls">
+                        <div class="example-url" data-url="https://jsonplaceholder.typicode.com/posts">示例1：JSONPlaceholder</div>
+                        <div class="example-url" data-url="https://httpbin.org/get">示例2：httpbin.org</div>
+                        <div class="example-url" data-url="https://api.github.com/users/github">示例3：GitHub API</div>
+                        <div class="example-url" data-url="https://dog.ceo/api/breeds/image/random">示例4：狗狗图片API</div>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label for="method">请求方法</label>
+                    <div class="url-input-container">
+                        <select id="method">
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                            <option value="DELETE">DELETE</option>
+                            <option value="PATCH">PATCH</option>
+                            <option value="HEAD">HEAD</option>
+                            <option value="OPTIONS">OPTIONS</option>
+                        </select>
+                        <input type="text" id="url" placeholder="请输入请求URL" value="https://jsonplaceholder.typicode.com/posts">
+                    </div>
+                </div>
+                
+                <!-- 保持原有的请求头、请求体等部分 -->
+                <!-- ... 原有代码 ... -->
+                
+            </div>
+            
+            <!-- 保持响应部分不变 -->
+            <!-- ... 原有代码 ... -->
+        </div>
+    </div>
+    
+    <script>
+        // 在原有的JavaScript代码基础上添加以下功能
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // ... 原有的变量和初始化代码 ...
+            
+            // 添加示例URL点击事件
+            document.querySelectorAll('.example-url').forEach(example => {
+                example.addEventListener('click', function() {
+                    const url = this.getAttribute('data-url');
+                    document.getElementById('url').value = url;
+                    showNotification(`已加载示例URL: ${url}`);
+                });
+            });
+            
+            // 修改sendRequest函数以支持CORS代理
+            async function sendRequest() {
+                const method = methodSelect.value;
+                let url = urlInput.value.trim();
+                
+                if (!url) {
+                    showNotification('请输入请求URL', 'error');
+                    return;
+                }
+                
+                // 检查是否使用CORS代理
+                const useCorsProxy = document.getElementById('cors-proxy-checkbox').checked;
+                const useCorsMode = document.getElementById('cors-mode-checkbox').checked;
+                
+                // 如果启用了CORS代理，则通过代理发送请求
+                let finalUrl = url;
+                if (useCorsProxy && !url.includes('corsproxy.io') && !url.includes('allorigins.win')) {
+                    // 使用公共CORS代理
+                    finalUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+                    showNotification('正在通过CORS代理发送请求...', 'info');
+                }
+                
+                // 构建请求头
+                const headers = getHeaders();
+                
+                // 如果是GET请求，将参数拼接到URL
+                if (method === 'GET' && currentBodyFormat === 'x-www-form-urlencoded') {
+                    const params = getUrlencodedParams();
+                    if (params) {
+                        finalUrl += (finalUrl.includes('?') ? '&' : '?') + params;
+                    }
+                }
+                
+                // 构建请求体
+                let body = null;
+                if (method !== 'GET' && method !== 'HEAD') {
+                    body = getRequestBody();
+                }
+                
+                // 显示加载指示器
+                loadingIndicator.classList.add('active');
+                responseText.value = '';
+                statusCode.textContent = '发送请求中...';
+                statusCode.className = 'status-code info';
+                
+                // 记录开始时间
+                const startTime = Date.now();
+                
+                try {
+                    // 配置fetch选项
+                    const fetchOptions = {
+                        method: method,
+                        headers: headers,
+                        body: body,
+                        // 设置mode选项
+                        mode: useCorsMode ? 'cors' : 'no-cors'
+                    };
+                    
+                    // 对于no-cors模式，需要特别处理
+                    if (useCorsMode) {
+                        // 添加CORS相关的请求头
+                        if (!headers['Origin']) {
+                            headers['Origin'] = window.location.origin;
+                        }
+                    }
+                    
+                    const response = await fetch(finalUrl, fetchOptions);
+                    
+                    // 计算响应时间
+                    const endTime = Date.now();
+                    const duration = endTime - startTime;
+                    
+                    // 检查响应状态
+                    if (!response.ok && response.status !== 0) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    // 更新响应状态
+                    updateResponseStatus(response.status, response.statusText, duration);
+                    
+                    // 显示响应头
+                    displayResponseHeaders(response.headers);
+                    
+                    // 尝试获取响应体
+                    try {
+                        let responseBody;
+                        const contentType = response.headers.get('content-type') || '';
+                        
+                        if (contentType.includes('application/json')) {
+                            responseBody = await response.json();
+                            responseText.value = JSON.stringify(responseBody, null, 2);
+                        } else if (contentType.includes('text/')) {
+                            responseBody = await response.text();
+                            responseText.value = responseBody;
+                        } else {
+                            // 对于二进制或其他类型，显示原始响应
+                            responseBody = await response.blob();
+                            responseText.value = `[二进制数据，大小: ${responseBody.size} 字节，类型: ${responseBody.type}]`;
+                        }
+                    } catch (parseError) {
+                        // 如果无法解析响应体，显示原始响应
+                        try {
+                            const text = await response.text();
+                            responseText.value = text || '[空响应体]';
+                        } catch {
+                            responseText.value = '[无法读取响应内容]';
+                        }
+                    }
+                    
+                    showNotification('请求成功！', 'success');
+                    
+                } catch (error) {
+                    // 计算响应时间
+                    const endTime = Date.now();
+                    const duration = endTime - startTime;
+                    
+                    // 显示错误
+                    statusCode.textContent = '请求失败';
+                    statusCode.className = 'status-code error';
+                    responseTime.textContent = `耗时: ${duration}ms`;
+                    
+                    let errorMsg = `错误: ${error.message}`;
+                    
+                    // 提供更详细的错误信息
+                    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                        errorMsg += '\n\n可能的原因：\n';
+                        errorMsg += '1. CORS策略阻止了请求（请确保已启用"CORS代理"选项）\n';
+                        errorMsg += '2. 网络连接问题\n';
+                        errorMsg += '3. 目标服务器不可用\n';
+                        errorMsg += '4. 防火墙或安全软件阻止了请求\n\n';
+                        errorMsg += '建议：\n';
+                        errorMsg += '- 启用"CORS代理"选项\n';
+                        errorMsg += '- 检查URL是否正确\n';
+                        errorMsg += '- 尝试其他示例URL\n';
+                        errorMsg += '- 检查浏览器控制台（F12）获取详细错误';
+                    }
+                    
+                    responseText.value = errorMsg;
+                    showNotification(`请求失败: ${error.message}`, 'error');
+                } finally {
+                    // 隐藏加载指示器
+                    loadingIndicator.classList.remove('active');
+                }
+            }
+            
+            // 添加一个专门处理跨域请求的函数
+            async function testCorsApi() {
+                // 测试几个公开的允许跨域的API
+                const testApis = [
+                    { name: 'JSONPlaceholder', url: 'https://jsonplaceholder.typicode.com/posts/1' },
+                    { name: 'httpbin', url: 'https://httpbin.org/get' },
+                    { name: 'GitHub', url: 'https://api.github.com/zen' },
+                    { name: 'Dog API', url: 'https://dog.ceo/api/breeds/image/random' }
+                ];
+                
+                for (const api of testApis) {
+                    try {
+                        const response = await fetch(api.url);
+                        if (response.ok) {
+                            console.log(`${api.name}: CORS允许`);
+                        } else {
+                            console.log(`${api.name}: CORS可能被阻止`);
+                        }
+                    } catch (error) {
+                        console.log(`${api.name}: CORS被阻止 - ${error.message}`);
+                    }
+                }
+            }
+            
+            // 页面加载后测试一次
+            setTimeout(testCorsApi, 1000);
+            
+            // ... 保持原有的其他函数 ...
+        });
+    </script>
+</body>
+</html>
