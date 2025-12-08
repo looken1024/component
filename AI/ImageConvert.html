@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片格式转换工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            font-weight: 300;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+        
+        .main-content {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 30px;
+        }
+        
+        .upload-section {
+            flex: 1;
+            min-width: 300px;
+            padding: 20px;
+            border-right: 1px solid #eaeaea;
+        }
+        
+        .conversion-section {
+            flex: 1;
+            min-width: 300px;
+            padding: 20px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #4b6cb7;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            background-color: #f8faff;
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .upload-area:hover {
+            background-color: #eef2ff;
+            border-color: #3a5ca9;
+        }
+        
+        .upload-area.drag-over {
+            background-color: #e0e7ff;
+            border-color: #2d4b9c;
+            border-style: solid;
+        }
+        
+        .upload-icon {
+            font-size: 4rem;
+            color: #4b6cb7;
+            margin-bottom: 15px;
+        }
+        
+        .upload-area h3 {
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 1.4rem;
+        }
+        
+        .upload-area p {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+        
+        #fileInput {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+        
+        .btn {
+            display: inline-block;
+            background: linear-gradient(to right, #4b6cb7, #3a5ca9);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(75, 108, 183, 0.2);
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(75, 108, 183, 0.3);
+        }
+        
+        .btn:active {
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(to right, #2ecc71, #27ae60);
+            box-shadow: 0 4px 10px rgba(46, 204, 113, 0.2);
+        }
+        
+        .btn-secondary:hover {
+            box-shadow: 0 6px 15px rgba(46, 204, 113, 0.3);
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #4b6cb7;
+            color: #4b6cb7;
+            box-shadow: none;
+        }
+        
+        .btn-outline:hover {
+            background-color: #4b6cb7;
+            color: white;
+            box-shadow: 0 4px 10px rgba(75, 108, 183, 0.2);
+        }
+        
+        .preview-container {
+            display: none; /* 默认隐藏 */
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            border: 1px solid #eaeaea;
+            background-color: #f9f9f9;
+            text-align: center;
+            min-height: 200px;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        
+        .preview-container.active {
+            display: flex; /* 上传后显示 */
+        }
+        
+        #imagePreview {
+            max-width: 100%;
+            max-height: 300px;
+            display: block;
+        }
+        
+        .image-info {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-left: 4px solid #4b6cb7;
+            display: none; /* 默认隐藏 */
+        }
+        
+        .image-info.active {
+            display: block; /* 上传后显示 */
+        }
+        
+        .image-info h3 {
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px dashed #ddd;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .info-value {
+            color: #333;
+            font-family: monospace;
+        }
+        
+        .format-selector {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-left: 4px solid #2ecc71;
+        }
+        
+        .format-selector h3 {
+            margin-bottom: 20px;
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+        
+        .format-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .format-option {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 20px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background-color: white;
+        }
+        
+        .format-option:hover {
+            border-color: #4b6cb7;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .format-option.selected {
+            border-color: #2ecc71;
+            background-color: #f0fff4;
+            box-shadow: 0 5px 15px rgba(46, 204, 113, 0.1);
+        }
+        
+        .format-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+        
+        .format-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        
+        .format-desc {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .quality-control {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        
+        .quality-control label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .quality-slider {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+            height: 8px;
+            border-radius: 4px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #2ecc71;
+            cursor: pointer;
+            border: 3px solid white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .quality-value {
+            font-weight: 700;
+            color: #2ecc71;
+            font-size: 1.2rem;
+            min-width: 40px;
+            text-align: center;
+        }
+        
+        .conversion-result {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 25px;
+            margin-top: 20px;
+            border-left: 4px solid #e74c3c;
+            display: none;
+        }
+        
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .result-header h3 {
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+        
+        .result-image {
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            background-color: #f1f1f1;
+            text-align: center;
+            min-height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #resultPreview {
+            max-width: 100%;
+            max-height: 200px;
+            display: block;
+        }
+        
+        .result-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed #ddd;
+        }
+        
+        .result-actions {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .file-size {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #4b6cb7;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .status-bar {
+            padding: 15px 30px;
+            background-color: #e8f4fd;
+            font-size: 0.95rem;
+            color: #0d47a1;
+            border-top: 1px solid #d1e3f8;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .upload-section {
+                border-right: none;
+                border-bottom: 1px solid #eaeaea;
+            }
+            
+            .format-options {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        .icon {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        
+        .upload-icon-small {
+            font-size: 1.5rem;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>图片格式转换工具</h1>
+            <p class="subtitle">快速、安全地转换图片格式：PNG、JPEG、WEBP、GIF、BMP、TIFF、ICO等格式相互转换，所有操作均在浏览器中完成，保护您的隐私</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <h3>点击或拖放图片到此处</h3>
+                    <p>支持 JPG、PNG、WEBP、GIF、BMP、TIFF、ICO 等格式</p>
+                    <p>最大文件大小：10MB</p>
+                    <input type="file" id="fileInput" accept="image/*">
+                </div>
+                
+                <!-- 图片预览区域，初始隐藏 -->
+                <div class="preview-container" id="previewContainer">
+                    <img id="imagePreview" alt="图片预览">
+                </div>
+                
+                <!-- 图片信息区域，初始隐藏 -->
+                <div class="image-info" id="imageInfo">
+                    <h3><span class="upload-icon-small">📊</span> 图片信息</h3>
+                    <div class="info-row">
+                        <span class="info-label">文件名:</span>
+                        <span class="info-value" id="fileName">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">原始格式:</span>
+                        <span class="info-value" id="originalFormat">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">图片尺寸:</span>
+                        <span class="info-value" id="imageDimensions">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">文件大小:</span>
+                        <span class="info-value" id="fileSize">-</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="conversion-section">
+                <div class="format-selector">
+                    <h3><span class="upload-icon-small">🔄</span> 转换为格式</h3>
+                    <p style="color: #666; margin-bottom: 20px;">选择您想要转换的目标格式：</p>
+                    
+                    <div class="format-options">
+                        <div class="format-option" data-format="png">
+                            <span class="format-icon">🖼️</span>
+                            <div class="format-name">PNG</div>
+                            <div class="format-desc">无损压缩，支持透明</div>
+                        </div>
+                        <div class="format-option" data-format="jpeg">
+                            <span class="format-icon">📷</span>
+                            <div class="format-name">JPEG</div>
+                            <div class="format-desc">有损压缩，适合照片</div>
+                        </div>
+                        <div class="format-option" data-format="webp">
+                            <span class="format-icon">🌐</span>
+                            <div class="format-name">WEBP</div>
+                            <div class="format-desc">现代格式，高压缩率</div>
+                        </div>
+                        <div class="format-option" data-format="gif">
+                            <span class="format-icon">🎬</span>
+                            <div class="format-name">GIF</div>
+                            <div class="format-desc">支持动画，256色</div>
+                        </div>
+                        <div class="format-option" data-format="bmp">
+                            <span class="format-icon">💾</span>
+                            <div class="format-name">BMP</div>
+                            <div class="format-desc">无压缩，高质量</div>
+                        </div>
+                        <div class="format-option" data-format="ico">
+                            <span class="format-icon">🖥️</span>
+                            <div class="format-name">ICO</div>
+                            <div class="format-desc">图标格式</div>
+                        </div>
+                    </div>
+                    
+                    <div class="quality-control" id="qualityControl">
+                        <label>JPEG/WEBP 质量: <span id="qualityValue" class="quality-value">85</span>%</label>
+                        <div class="quality-slider">
+                            <span style="color: #999; font-size: 0.9rem;">低</span>
+                            <input type="range" id="qualitySlider" min="10" max="100" value="85">
+                            <span style="color: #999; font-size: 0.9rem;">高</span>
+                        </div>
+                        <p style="font-size: 0.85rem; color: #666; margin-top: 10px;">质量越高，文件越大。PNG格式不受此设置影响。</p>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 25px;">
+                        <button class="btn btn-secondary" id="convertBtn" disabled>开始转换</button>
+                    </div>
+                </div>
+                
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>正在转换图片格式，请稍候...</p>
+                </div>
+                
+                <div class="conversion-result" id="conversionResult">
+                    <div class="result-header">
+                        <h3><span class="upload-icon-small">✅</span> 转换结果</h3>
+                        <span id="resultFormat" style="font-weight: 600; color: #2ecc71;"></span>
+                    </div>
+                    
+                    <div class="result-image">
+                        <img id="resultPreview" alt="转换结果预览">
+                        <div id="noResultMessage" style="color: #999;">
+                            转换结果将在此处显示
+                        </div>
+                    </div>
+                    
+                    <div class="result-info">
+                        <div>
+                            <div class="info-label">新文件大小:</div>
+                            <div class="info-value" id="resultFileSize">-</div>
+                        </div>
+                        <div>
+                            <div class="info-label">压缩率:</div>
+                            <div class="info-value" id="compressionRatio">-</div>
+                        </div>
+                    </div>
+                    
+                    <div class="result-actions">
+                        <button class="btn" id="downloadBtn">下载图片</button>
+                        <button class="btn btn-outline" id="newConversionBtn">新的转换</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-bar" id="statusBar">
+            <span id="statusMessage">请上传图片以开始格式转换</span>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let originalImage = null;
+        let originalImageData = null;
+        let originalFormat = null;
+        let originalFileName = null;
+        let originalFileSize = 0;
+        let selectedFormat = 'png';
+        let quality = 85;
+        let conversionResult = null;
+        
+        // DOM元素
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const previewContainer = document.getElementById('previewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+        const imageInfo = document.getElementById('imageInfo');
+        const convertBtn = document.getElementById('convertBtn');
+        const loading = document.getElementById('loading');
+        const conversionResultDiv = document.getElementById('conversionResult');
+        const resultPreview = document.getElementById('resultPreview');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const newConversionBtn = document.getElementById('newConversionBtn');
+        const qualitySlider = document.getElementById('qualitySlider');
+        const qualityValue = document.getElementById('qualityValue');
+        const qualityControl = document.getElementById('qualityControl');
+        
+        // 信息显示元素
+        const fileName = document.getElementById('fileName');
+        const originalFormatDisplay = document.getElementById('originalFormat');
+        const imageDimensions = document.getElementById('imageDimensions');
+        const fileSizeDisplay = document.getElementById('fileSize');
+        const resultFormat = document.getElementById('resultFormat');
+        const resultFileSize = document.getElementById('resultFileSize');
+        const compressionRatio = document.getElementById('compressionRatio');
+        
+        // 状态栏
+        const statusBar = document.getElementById('statusBar');
+        const statusMessage = document.getElementById('statusMessage');
+        
+        // 格式选项
+        const formatOptions = document.querySelectorAll('.format-option');
+        
+        // 初始化
+        function init() {
+            // 文件输入框change事件监听
+            fileInput.addEventListener('change', handleImageUpload);
+            
+            // 拖放上传
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('drag-over');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('drag-over');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('drag-over');
+                if (e.dataTransfer.files.length) {
+                    fileInput.files = e.dataTransfer.files;
+                    handleImageUpload();
+                }
+            });
+            
+            // 格式选择
+            formatOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    // 移除其他选项的选中状态
+                    formatOptions.forEach(opt => opt.classList.remove('selected'));
+                    // 设置当前选项为选中状态
+                    option.classList.add('selected');
+                    // 更新选中的格式
+                    selectedFormat = option.dataset.format;
+                    
+                    // 更新质量控制的显示（某些格式不需要质量控制）
+                    updateQualityControlVisibility();
+                    
+                    // 如果已有图片，启用转换按钮
+                    if (originalImage) {
+                        convertBtn.disabled = false;
+                    }
+                    
+                    updateStatus(`已选择 ${selectedFormat.toUpperCase()} 格式`);
+                });
+            });
+            
+            // 质量滑块
+            qualitySlider.addEventListener('input', () => {
+                quality = parseInt(qualitySlider.value);
+                qualityValue.textContent = quality;
+            });
+            
+            // 转换按钮
+            convertBtn.addEventListener('click', convertImage);
+            
+            // 下载按钮
+            downloadBtn.addEventListener('click', downloadResult);
+            
+            // 新转换按钮
+            newConversionBtn.addEventListener('click', resetConversion);
+            
+            // 默认选中PNG格式
+            document.querySelector('.format-option[data-format="png"]').classList.add('selected');
+            
+            updateStatus('请上传图片以开始格式转换');
+        }
+        
+        // 处理图片上传
+        function handleImageUpload(e) {
+            console.log('handleImageUpload called');
+            
+            if (!fileInput.files || !fileInput.files.length) {
+                console.log('没有选择文件');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            
+            // 检查文件大小（限制10MB）
+            if (file.size > 10 * 1024 * 1024) {
+                updateStatus('错误：文件大小超过10MB限制', true);
+                fileInput.value = ''; // 清空文件输入
+                return;
+            }
+            
+            // 检查文件类型
+            if (!file.type.match('image.*')) {
+                updateStatus('错误：请选择图片文件', true);
+                fileInput.value = ''; // 清空文件输入
+                return;
+            }
+            
+            // 保存原始文件信息
+            originalFileName = file.name;
+            originalFileSize = file.size;
+            originalFormat = getFileExtension(file.name);
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    // 保存原始图片
+                    originalImage = img;
+                    originalImageData = e.target.result;
+                    
+                    // 显示图片预览区域
+                    previewContainer.classList.add('active');
+                    imageInfo.classList.add('active');
+                    
+                    // 显示图片预览
+                    imagePreview.src = img.src;
+                    
+                    // 更新图片信息
+                    updateImageInfo();
+                    
+                    // 启用转换按钮
+                    convertBtn.disabled = false;
+                    
+                    // 更新质量控制显示
+                    updateQualityControlVisibility();
+                    
+                    updateStatus(`已加载: ${originalFileName} (${originalFormat.toUpperCase()})`);
+                };
+                
+                img.onerror = function() {
+                    updateStatus('错误：无法加载图片文件', true);
+                    // 重置文件输入
+                    fileInput.value = '';
+                };
+                
+                img.src = e.target.result;
+            };
+            
+            reader.onerror = function() {
+                updateStatus('错误：无法读取文件', true);
+                // 重置文件输入
+                fileInput.value = '';
+            };
+            
+            reader.readAsDataURL(file);
+        }
+        
+        // 更新图片信息
+        function updateImageInfo() {
+            if (!originalImage) return;
+            
+            fileName.textContent = originalFileName;
+            originalFormatDisplay.textContent = originalFormat.toUpperCase();
+            imageDimensions.textContent = `${originalImage.width} × ${originalImage.height} 像素`;
+            fileSizeDisplay.textContent = formatFileSize(originalFileSize);
+        }
+        
+        // 更新质量控制显示
+        function updateQualityControlVisibility() {
+            // 只有JPEG和WEBP格式需要质量控制
+            if (selectedFormat === 'jpeg' || selectedFormat === 'webp') {
+                qualityControl.style.display = 'block';
+            } else {
+                qualityControl.style.display = 'none';
+            }
+        }
+        
+        // 转换图片
+        function convertImage() {
+            if (!originalImage) return;
+            
+            // 显示加载动画
+            loading.style.display = 'block';
+            conversionResultDiv.style.display = 'none';
+            convertBtn.disabled = true;
+            
+            updateStatus(`正在转换为 ${selectedFormat.toUpperCase()} 格式...`);
+            
+            // 使用setTimeout确保UI更新
+            setTimeout(() => {
+                try {
+                    // 创建canvas
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // 设置canvas尺寸
+                    canvas.width = originalImage.width;
+                    canvas.height = originalImage.height;
+                    
+                    // 绘制图片到canvas
+                    ctx.drawImage(originalImage, 0, 0);
+                    
+                    // 根据选择的格式进行转换
+                    let mimeType, dataUrl;
+                    
+                    switch(selectedFormat) {
+                        case 'jpeg':
+                            mimeType = 'image/jpeg';
+                            dataUrl = canvas.toDataURL(mimeType, quality / 100);
+                            break;
+                        case 'png':
+                            mimeType = 'image/png';
+                            dataUrl = canvas.toDataURL(mimeType);
+                            break;
+                        case 'webp':
+                            mimeType = 'image/webp';
+                            // 注意：并非所有浏览器都支持toDataURL的webp格式
+                            try {
+                                dataUrl = canvas.toDataURL(mimeType, quality / 100);
+                            } catch (e) {
+                                // 如果不支持webp，使用png作为后备
+                                updateStatus('警告：此浏览器不支持WEBP格式，将使用PNG代替', true);
+                                mimeType = 'image/png';
+                                dataUrl = canvas.toDataURL(mimeType);
+                                selectedFormat = 'png';
+                            }
+                            break;
+                        case 'gif':
+                            // GIF格式在canvas中支持有限，使用PNG作为后备
+                            mimeType = 'image/gif';
+                            // 尝试转换为GIF，如果失败则使用PNG
+                            try {
+                                // 创建简单的GIF（单帧）
+                                dataUrl = canvas.toDataURL('image/gif');
+                            } catch (e) {
+                                updateStatus('警告：GIF转换受限，使用PNG格式代替', true);
+                                mimeType = 'image/png';
+                                dataUrl = canvas.toDataURL(mimeType);
+                                selectedFormat = 'png';
+                            }
+                            break;
+                        case 'bmp':
+                            mimeType = 'image/bmp';
+                            // BMP格式在canvas中支持有限，使用PNG作为后备
+                            try {
+                                dataUrl = canvas.toDataURL('image/bmp');
+                            } catch (e) {
+                                updateStatus('警告：BMP转换受限，使用PNG格式代替', true);
+                                mimeType = 'image/png';
+                                dataUrl = canvas.toDataURL(mimeType);
+                                selectedFormat = 'png';
+                            }
+                            break;
+                        case 'ico':
+                            // ICO格式需要特殊处理，这里使用PNG作为后备
+                            mimeType = 'image/x-icon';
+                            // ICO格式在canvas中不支持，使用PNG作为后备
+                            updateStatus('警告：ICO格式转换需要特殊处理，使用PNG格式代替', true);
+                            mimeType = 'image/png';
+                            dataUrl = canvas.toDataURL(mimeType);
+                            selectedFormat = 'png';
+                            break;
+                        default:
+                            mimeType = 'image/png';
+                            dataUrl = canvas.toDataURL(mimeType);
+                    }
+                    
+                    // 保存转换结果
+                    conversionResult = dataUrl;
+                    
+                    // 隐藏加载动画
+                    loading.style.display = 'none';
+                    
+                    // 显示结果
+                    showConversionResult(dataUrl, mimeType);
+                    
+                } catch (error) {
+                    console.error('转换错误:', error);
+                    updateStatus('转换过程中发生错误: ' + error.message, true);
+                    loading.style.display = 'none';
+                    convertBtn.disabled = false;
+                }
+            }, 100);
+        }
+        
+        // 显示转换结果
+        function showConversionResult(dataUrl, mimeType) {
+            // 显示结果区域
+            conversionResultDiv.style.display = 'block';
+            
+            // 显示结果图片
+            resultPreview.src = dataUrl;
+            
+            // 计算文件大小
+            const resultSize = calculateFileSize(dataUrl);
+            const resultSizeFormatted = formatFileSize(resultSize);
+            
+            // 计算压缩率
+            const compression = originalFileSize > 0 ? 
+                ((1 - resultSize / originalFileSize) * 100).toFixed(1) : 0;
+            
+            // 更新结果信息
+            resultFormat.textContent = selectedFormat.toUpperCase();
+            resultFileSize.textContent = resultSizeFormatted;
+            
+            if (compression > 0) {
+                compressionRatio.textContent = `减少 ${compression}%`;
+                compressionRatio.style.color = '#2ecc71';
+            } else if (compression < 0) {
+                compressionRatio.textContent = `增加 ${Math.abs(compression).toFixed(1)}%`;
+                compressionRatio.style.color = '#e74c3c';
+            } else {
+                compressionRatio.textContent = '无变化';
+                compressionRatio.style.color = '#666';
+            }
+            
+            // 重新启用转换按钮（可以再次转换）
+            convertBtn.disabled = false;
+            
+            updateStatus(`转换完成: ${originalFormat.toUpperCase()} → ${selectedFormat.toUpperCase()}, 新大小: ${resultSizeFormatted}`);
+        }
+        
+        // 下载结果
+        function downloadResult() {
+            if (!conversionResult) return;
+            
+            // 生成文件名
+            const baseName = originalFileName.substring(0, originalFileName.lastIndexOf('.'));
+            const newFileName = `${baseName}_converted.${selectedFormat}`;
+            
+            // 创建下载链接
+            const link = document.createElement('a');
+            link.download = newFileName;
+            link.href = conversionResult;
+            link.click();
+            
+            updateStatus(`已下载: ${newFileName}`);
+        }
+        
+        // 重置转换
+        function resetConversion() {
+            // 隐藏结果区域
+            conversionResultDiv.style.display = 'none';
+            
+            // 重置结果预览
+            resultPreview.src = '';
+            
+            updateStatus('已重置，可以开始新的转换');
+        }
+        
+        // 辅助函数：获取文件扩展名
+        function getFileExtension(filename) {
+            return filename.slice((filename.lastIndexOf(".") - 1 >>> 0) + 2).toLowerCase();
+        }
+        
+        // 辅助函数：格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // 辅助函数：计算DataURL的文件大小
+        function calculateFileSize(dataUrl) {
+            // 减去DataURL前缀的大小
+            const prefix = 'data:image/png;base64,'.length;
+            const base64 = dataUrl.substring(dataUrl.indexOf(',') + 1);
+            
+            // Base64编码会增加约33%的大小
+            // 计算公式：原始大小 = base64长度 * 3/4 - padding等
+            let size = base64.length;
+            
+            // 减去padding等
+            if (base64.endsWith('==')) {
+                size -= 2;
+            } else if (base64.endsWith('=')) {
+                size -= 1;
+            }
+            
+            // 计算原始字节大小
+            return Math.floor(size * 3 / 4);
+        }
+        
+        // 更新状态栏
+        function updateStatus(message, isError = false) {
+            statusMessage.textContent = message;
+            
+            if (isError) {
+                statusBar.style.backgroundColor = '#ffebee';
+                statusBar.style.color = '#c62828';
+                statusBar.style.borderTop = '1px solid #ffcdd2';
+            } else {
+                statusBar.style.backgroundColor = '#e8f4fd';
+                statusBar.style.color = '#0d47a1';
+                statusBar.style.borderTop = '1px solid #d1e3f8';
+            }
+        }
+        
+        // 页面加载完成后初始化
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
