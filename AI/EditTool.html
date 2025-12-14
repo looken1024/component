@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EditPlus风格文本编辑器</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5dc;
+            color: #333;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 工具栏样式 */
+        .toolbar {
+            background-color: #fff9c4;
+            padding: 8px 16px;
+            border-bottom: 1px solid #e6d8a0;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .toolbar-btn {
+            background-color: #fff;
+            color: #333;
+            border: 1px solid #d4c690;
+            border-radius: 4px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .toolbar-btn:hover {
+            background-color: #f0f0f0;
+            border-color: #b8a86c;
+        }
+
+        .toolbar-btn:active {
+            background-color: #e0e0e0;
+        }
+
+        .toolbar-separator {
+            width: 1px;
+            height: 24px;
+            background-color: #d4c690;
+            margin: 0 8px;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+            font-size: 14px;
+        }
+
+        .filename-input {
+            background-color: #fff;
+            border: 1px solid #d4c690;
+            color: #333;
+            padding: 4px 8px;
+            border-radius: 4px;
+            min-width: 200px;
+        }
+
+        .language-select {
+            background-color: #fff;
+            border: 1px solid #d4c690;
+            color: #333;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        /* 主编辑区 */
+        .editor-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .line-numbers {
+            background-color: #f0e6b3;
+            color: #666;
+            padding: 12px 8px 12px 12px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            text-align: right;
+            user-select: none;
+            overflow-y: hidden;
+            width: 60px;
+            flex-shrink: 0;
+            border-right: 1px solid #d4c690;
+            display: flex;
+            flex-direction: column;
+            min-height: 100%;
+        }
+
+        .line-number {
+            height: 21px; /* 14px * 1.5 = 21px */
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 4px;
+            white-space: nowrap;
+        }
+
+        .editor-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: auto;
+            background-color: #ffffe0;
+        }
+
+        /* 文本编辑区域 */
+        #editor {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: transparent !important;
+            color: rgba(0, 0, 0, 0.7) !important; /* 半透明黑色，避免重影 */
+            caret-color: #333 !important;
+            padding: 12px 16px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+            font-size: 14px !important;
+            line-height: 1.5 !important;
+            white-space: pre !important;
+            overflow-wrap: normal !important;
+            outline: none !important;
+            resize: none !important;
+            tab-size: 4 !important;
+            -moz-tab-size: 4 !important;
+            border: none !important;
+            overflow: auto !important;
+            z-index: 2 !important;
+        }
+
+        /* 语法高亮层 */
+        #highlighted-text {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            min-height: 100%;
+            padding: 12px 16px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre;
+            overflow-wrap: normal;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+            background-color: #ffffe0;
+            color: transparent;
+        }
+
+        /* 简单的高亮样式 */
+        .keyword { color: #0000ff; font-weight: bold; }
+        .string { color: #008000; }
+        .comment { color: #808080; font-style: italic; }
+        .number { color: #ff4500; }
+        .function { color: #8b008b; }
+        .operator { color: #0000cc; }
+        .punctuation { color: #333; }
+        .property { color: #ff00ff; }
+
+        /* 状态栏 */
+        .status-bar {
+            background-color: #e6d8a0;
+            color: #333;
+            padding: 4px 16px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid #d4c690;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* 文件输入隐藏 */
+        #file-input {
+            display: none;
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f0e6b3;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #d4c690;
+            border-radius: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #b8a86c;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .toolbar {
+                padding: 6px 10px;
+            }
+            
+            .toolbar-btn span {
+                display: none;
+            }
+            
+            .filename-input {
+                min-width: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 工具栏 -->
+    <div class="toolbar">
+        <button id="new-btn" class="toolbar-btn">
+            <i class="fas fa-file"></i><span>新建</span>
+        </button>
+        <button id="open-btn" class="toolbar-btn">
+            <i class="fas fa-folder-open"></i><span>打开</span>
+        </button>
+        <button id="save-btn" class="toolbar-btn">
+            <i class="fas fa-save"></i><span>保存</span>
+        </button>
+        <button id="save-as-btn" class="toolbar-btn">
+            <i class="fas fa-save"></i><span>另存为</span>
+        </button>
+        
+        <div class="toolbar-separator"></div>
+        
+        <button id="undo-btn" class="toolbar-btn">
+            <i class="fas fa-undo"></i><span>撤销</span>
+        </button>
+        <button id="redo-btn" class="toolbar-btn">
+            <i class="fas fa-redo"></i><span>重做</span>
+        </button>
+        
+        <div class="toolbar-separator"></div>
+        
+        <button id="find-btn" class="toolbar-btn">
+            <i class="fas fa-search"></i><span>查找</span>
+        </button>
+        
+        <div class="file-info">
+            <input type="text" id="filename" class="filename-input" placeholder="未命名文件.txt" value="未命名文件.txt">
+            <select id="language" class="language-select">
+                <option value="plain">纯文本</option>
+                <option value="html">HTML</option>
+                <option value="css">CSS</option>
+                <option value="javascript">JavaScript</option>
+                <option value="python">Python</option>
+            </select>
+        </div>
+    </div>
+    
+    <!-- 文件输入 -->
+    <input type="file" id="file-input" accept=".txt,.html,.css,.js,.py">
+    
+    <!-- 主编辑区 -->
+    <div class="editor-container">
+        <div class="line-numbers" id="line-numbers"></div>
+        <div class="editor-wrapper" id="editor-wrapper">
+            <!-- 用于显示高亮文本的div -->
+            <div id="highlighted-text"></div>
+            <!-- 使用textarea作为实际的编辑器 -->
+            <textarea id="editor"></textarea>
+        </div>
+    </div>
+    
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <div class="status-item">
+            <span id="cursor-position">行: 1, 列: 1</span>
+            <span id="tab-info">Tab: 4空格</span>
+        </div>
+        <div class="status-item">
+            <span id="char-count">字符: 0</span>
+            <span id="language-status">语言: 纯文本</span>
+        </div>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const editor = document.getElementById('editor');
+        const lineNumbers = document.getElementById('line-numbers');
+        const highlightedText = document.getElementById('highlighted-text');
+        const editorWrapper = document.getElementById('editor-wrapper');
+        const fileInput = document.getElementById('file-input');
+        const filenameInput = document.getElementById('filename');
+        const languageSelect = document.getElementById('language');
+        const cursorPosition = document.getElementById('cursor-position');
+        const charCount = document.getElementById('char-count');
+        const languageStatus = document.getElementById('language-status');
+        const tabInfo = document.getElementById('tab-info');
+        
+        // 编辑器状态
+        let currentFile = null;
+        let isModified = false;
+        let highlightTimeout = null;
+        
+        // 初始化编辑器
+        function initEditor() {
+            // 设置初始内容
+            const initialContent = `欢迎使用类EditPlus文本编辑器！
+
+功能说明：
+1. 支持打开、编辑、保存文本文件
+2. 支持多种编程语言的语法高亮
+3. Tab键插入4个空格
+4. 浅黄色背景，黑色文字
+
+请使用上方工具栏开始编辑。`;
+            
+            editor.value = initialContent;
+            updateLineNumbers();
+            updateStatus();
+            applyHighlighting();
+            
+            // 监听编辑器内容变化
+            editor.addEventListener('input', function() {
+                isModified = true;
+                updateLineNumbers();
+                updateStatus();
+                debouncedApplyHighlighting();
+            });
+            
+            // 监听光标移动
+            editor.addEventListener('keyup', updateStatus);
+            editor.addEventListener('mouseup', updateStatus);
+            editor.addEventListener('click', updateStatus);
+            
+            // 处理Tab键缩进（4个空格）
+            editor.addEventListener('keydown', function(e) {
+                // Tab键处理 - 插入4个空格
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    
+                    // 获取当前光标位置
+                    const start = editor.selectionStart;
+                    const end = editor.selectionEnd;
+                    const text = editor.value;
+                    
+                    // 插入4个空格
+                    editor.value = text.substring(0, start) + '    ' + text.substring(end);
+                    
+                    // 移动光标到插入的文本之后
+                    editor.selectionStart = editor.selectionEnd = start + 4;
+                    
+                    updateLineNumbers();
+                    updateStatus();
+                    applyHighlighting();
+                    
+                    return;
+                }
+                
+                // Enter键处理 - 自动缩进
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    
+                    // 获取当前光标位置
+                    const start = editor.selectionStart;
+                    const end = editor.selectionEnd;
+                    const text = editor.value;
+                    
+                    // 获取当前行的缩进
+                    let indentCount = 0;
+                    
+                    if (text && start !== undefined) {
+                        // 找到当前行的开始位置
+                        let lineStart = 0;
+                        for (let i = start - 1; i >= 0; i--) {
+                            if (text[i] === '\n') {
+                                lineStart = i + 1;
+                                break;
+                            }
+                        }
+                        
+                        // 获取当前行的文本（从行开始到光标位置）
+                        const lineText = text.substring(lineStart, start);
+                        
+                        // 计算当前行的空格缩进
+                        for (let i = 0; i < lineText.length; i++) {
+                            if (lineText[i] === ' ') {
+                                indentCount++;
+                            } else if (lineText[i] === '\t') {
+                                indentCount += 4; // 将制表符视为4个空格
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // 创建要插入的文本（换行 + 缩进）
+                    const textToInsert = '\n' + ' '.repeat(indentCount);
+                    
+                    // 插入文本
+                    editor.value = text.substring(0, start) + textToInsert + text.substring(end);
+                    
+                    // 移动光标到插入的文本之后
+                    const newPos = start + textToInsert.length;
+                    editor.selectionStart = editor.selectionEnd = newPos;
+                    
+                    updateLineNumbers();
+                    updateStatus();
+                    applyHighlighting();
+                    
+                    return;
+                }
+                
+                // 撤销/重做处理 (Ctrl+Z / Ctrl+Y)
+                if (e.ctrlKey || e.metaKey) {
+                    if (e.key === 'z') {
+                        e.preventDefault();
+                        document.execCommand('undo');
+                    } else if (e.key === 'y') {
+                        e.preventDefault();
+                        document.execCommand('redo');
+                    } else if (e.key === 's') {
+                        e.preventDefault();
+                        saveFile();
+                    }
+                }
+            });
+            
+            // 语言选择变化
+            languageSelect.addEventListener('change', function() {
+                applyHighlighting();
+                languageStatus.textContent = `语言: ${languageSelect.options[languageSelect.selectedIndex].text}`;
+            });
+            
+            // 同步滚动
+            function syncScroll() {
+                lineNumbers.scrollTop = editor.scrollTop;
+                highlightedText.scrollTop = editor.scrollTop;
+                highlightedText.scrollLeft = editor.scrollLeft;
+            }
+            
+            // 监听编辑器滚动
+            editor.addEventListener('scroll', syncScroll);
+            
+            // 设置编辑器和高亮层的高度
+            function updateEditorHeight() {
+                const editorHeight = Math.max(editor.scrollHeight, editorWrapper.clientHeight);
+                editor.style.height = editorHeight + 'px';
+                highlightedText.style.height = editorHeight + 'px';
+            }
+            
+            // 监听编辑器大小变化
+            editor.addEventListener('input', updateEditorHeight);
+            updateEditorHeight();
+        }
+        
+        // 防抖应用高亮
+        function debouncedApplyHighlighting() {
+            clearTimeout(highlightTimeout);
+            highlightTimeout = setTimeout(() => {
+                applyHighlighting();
+            }, 100);
+        }
+        
+        // 语法高亮规则
+        const highlightRules = {
+            javascript: {
+                keywords: /\b(function|var|let|const|if|else|for|while|return|new|class|extends|import|export|from|default|true|false|null|undefined|typeof|instanceof|this)\b/g,
+                strings: /(["'`])(?:\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1/g,
+                comments: /\/\/.*|\/\*[\s\S]*?\*\//g,
+                numbers: /\b\d+(?:\.\d+)?\b/g,
+                functions: /\b\w+(?=\()/g
+            },
+            html: {
+                tags: /<\/?[\w\s="'-]+>?/g,
+                comments: /<!--[\s\S]*?-->/g,
+                attributes: /\b(\w+)=/g
+            },
+            css: {
+                properties: /\b[\w-]+(?=\s*:)/g,
+                values: /:\s*[^;]+/g,
+                selectors: /[^{}]+(?=\{)/g,
+                comments: /\/\*[\s\S]*?\*\//g
+            },
+            python: {
+                keywords: /\b(def|class|if|elif|else|for|while|try|except|import|from|as|with|return|yield|lambda|and|or|not|in|is|None|True|False)\b/g,
+                strings: /(["'`])(?:\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1/g,
+                comments: /#.*/g,
+                numbers: /\b\d+(?:\.\d+)?\b/g,
+                functions: /\b\w+(?=\()/g
+            }
+        };
+        
+        // 应用语法高亮
+        function applyHighlighting() {
+            const language = languageSelect.value;
+            
+            // 如果是纯文本，清空高亮区域
+            if (language === 'plain') {
+                highlightedText.innerHTML = '';
+                return;
+            }
+            
+            // 获取当前文本
+            const text = editor.value;
+            
+            // 转义HTML特殊字符
+            let highlighted = escapeHtml(text);
+            const rules = highlightRules[language];
+            
+            if (rules) {
+                // 应用注释高亮
+                if (rules.comments) {
+                    highlighted = highlighted.replace(rules.comments, '<span class="comment">$&</span>');
+                }
+                
+                // 应用字符串高亮
+                if (rules.strings) {
+                    highlighted = highlighted.replace(rules.strings, '<span class="string">$&</span>');
+                }
+                
+                // 应用关键字高亮
+                if (rules.keywords) {
+                    highlighted = highlighted.replace(rules.keywords, '<span class="keyword">$&</span>');
+                }
+                
+                // 应用数字高亮
+                if (rules.numbers) {
+                    highlighted = highlighted.replace(rules.numbers, '<span class="number">$&</span>');
+                }
+                
+                // 应用函数高亮
+                if (rules.functions) {
+                    highlighted = highlighted.replace(rules.functions, '<span class="function">$&</span>');
+                }
+                
+                // HTML标签高亮
+                if (rules.tags) {
+                    highlighted = highlighted.replace(rules.tags, '<span class="keyword">$&</span>');
+                }
+                
+                // CSS属性高亮
+                if (rules.properties) {
+                    highlighted = highlighted.replace(rules.properties, '<span class="property">$&</span>');
+                }
+            }
+            
+            // 保持换行符
+            highlighted = highlighted.replace(/\n/g, '\n');
+            
+            // 更新高亮区域
+            highlightedText.innerHTML = highlighted;
+            
+            // 确保高亮层的字体和大小与编辑器完全一致
+            const editorStyle = window.getComputedStyle(editor);
+            highlightedText.style.fontFamily = editorStyle.fontFamily;
+            highlightedText.style.fontSize = editorStyle.fontSize;
+            highlightedText.style.lineHeight = editorStyle.lineHeight;
+            highlightedText.style.padding = editorStyle.padding;
+            highlightedText.style.whiteSpace = editorStyle.whiteSpace;
+        }
+        
+        // 转义HTML特殊字符
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // 更新行号
+        function updateLineNumbers() {
+            // 获取编辑器文本
+            const text = editor.value;
+            
+            // 按换行符分割文本
+            const lines = text.split('\n');
+            
+            // 清空行号区域
+            lineNumbers.innerHTML = '';
+            
+            // 为每一行创建一个行号元素
+            for (let i = 1; i <= lines.length; i++) {
+                const lineNumber = document.createElement('div');
+                lineNumber.className = 'line-number';
+                lineNumber.textContent = i;
+                lineNumbers.appendChild(lineNumber);
+            }
+            
+            // 确保行号区域有足够的高度
+            lineNumbers.style.minHeight = editor.scrollHeight + 'px';
+        }
+        
+        // 更新状态栏
+        function updateStatus() {
+            // 计算光标位置
+            const text = editor.value;
+            const cursorPos = editor.selectionStart;
+            
+            // 计算行和列
+            let line = 1;
+            let column = 1;
+            
+            for (let i = 0; i < cursorPos && i < text.length; i++) {
+                if (text[i] === '\n') {
+                    line++;
+                    column = 1;
+                } else {
+                    column++;
+                }
+            }
+            
+            cursorPosition.textContent = `行: ${line}, 列: ${column}`;
+            
+            // 字符计数
+            charCount.textContent = `字符: ${text.length}`;
+            
+            // 修改状态
+            document.title = (isModified ? '* ' : '') + filenameInput.value + ' - 文本编辑器';
+        }
+        
+        // 文件操作
+        // 新建文件
+        document.getElementById('new-btn').addEventListener('click', function() {
+            if (isModified) {
+                if (!confirm('当前文件已修改，是否保存更改？')) {
+                    resetEditor();
+                }
+            } else {
+                resetEditor();
+            }
+        });
+        
+        // 打开文件
+        document.getElementById('open-btn').addEventListener('click', function() {
+            fileInput.click();
+        });
+        
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                // 设置文本内容
+                editor.value = event.target.result;
+                
+                currentFile = file;
+                filenameInput.value = file.name;
+                
+                // 根据扩展名设置语言
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (ext === 'js') languageSelect.value = 'javascript';
+                else if (ext === 'html' || ext === 'htm') languageSelect.value = 'html';
+                else if (ext === 'css') languageSelect.value = 'css';
+                else if (ext === 'py') languageSelect.value = 'python';
+                else languageSelect.value = 'plain';
+                
+                isModified = false;
+                applyHighlighting();
+                updateLineNumbers();
+                updateStatus();
+                languageStatus.textContent = `语言: ${languageSelect.options[languageSelect.selectedIndex].text}`;
+            };
+            
+            reader.readAsText(file);
+        });
+        
+        // 保存文件
+        document.getElementById('save-btn').addEventListener('click', saveFile);
+        
+        // 另存为
+        document.getElementById('save-as-btn').addEventListener('click', function() {
+            saveFile(true);
+        });
+        
+        // 保存文件函数
+        function saveFile(forceSaveAs = false) {
+            const content = editor.value;
+            const filename = filenameInput.value || '未命名文件.txt';
+            
+            // 如果没有文件名或强制另存为，则提示输入文件名
+            if (!currentFile || forceSaveAs) {
+                const suggestedName = filenameInput.value || '未命名文件.txt';
+                const userFilename = prompt('请输入文件名:', suggestedName);
+                if (!userFilename) return;
+                
+                filenameInput.value = userFilename;
+            }
+            
+            // 创建并下载文件
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filenameInput.value;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            isModified = false;
+            updateStatus();
+            
+            // 设置当前文件
+            currentFile = { name: filenameInput.value };
+        }
+        
+        // 重置编辑器
+        function resetEditor() {
+            editor.value = '';
+            currentFile = null;
+            filenameInput.value = '未命名文件.txt';
+            languageSelect.value = 'plain';
+            isModified = false;
+            applyHighlighting();
+            updateLineNumbers();
+            updateStatus();
+            languageStatus.textContent = `语言: 纯文本`;
+        }
+        
+        // 撤销/重做按钮
+        document.getElementById('undo-btn').addEventListener('click', function() {
+            document.execCommand('undo');
+        });
+        
+        document.getElementById('redo-btn').addEventListener('click', function() {
+            document.execCommand('redo');
+        });
+        
+        // 查找功能
+        document.getElementById('find-btn').addEventListener('click', function() {
+            const searchText = prompt('请输入要查找的文本:');
+            if (!searchText) return;
+            
+            const content = editor.value;
+            const index = content.indexOf(searchText, editor.selectionStart);
+            
+            if (index === -1) {
+                // 从头开始搜索
+                const newIndex = content.indexOf(searchText, 0);
+                if (newIndex === -1) {
+                    alert('未找到匹配的文本');
+                    return;
+                }
+                
+                // 设置选中文本
+                editor.selectionStart = newIndex;
+                editor.selectionEnd = newIndex + searchText.length;
+            } else {
+                // 设置选中文本
+                editor.selectionStart = index;
+                editor.selectionEnd = index + searchText.length;
+            }
+            
+            editor.focus();
+            updateStatus();
+        });
+        
+        // 初始化编辑器
+        initEditor();
+    </script>
+</body>
+</html>
