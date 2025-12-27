@@ -16,5 +16,6 @@ word2vec.word2vec(train='word2vec_jieba_output.txt',
                   window=5,  # 上下文窗口大小
                   negative=5,  # 负采样数
                   threads=4,  # 线程数
+                  min_count=1,
                   iter_=5)    # 迭代次数
 
