@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>连连看 - 经典休闲小游戏</title>
+    <script src="https://cdn.tailwindcss.com/3.3.3"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    
+    <!-- 配置Tailwind自定义颜色 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6366F1', // 主色调：靛蓝色
+                        secondary: '#EC4899', // 辅助色：粉色
+                        accent: '#10B981', // 强调色：绿色
+                        neutral: '#6B7280', // 中性色：灰色
+                        danger: '#EF4444', // 危险色：红色
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .game-shadow {
+                box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.2);
+            }
+            .card-shadow {
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            }
+            .card-shadow-hover {
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            }
+            .btn-shadow {
+                box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.3);
+            }
+            .btn-shadow-hover {
+                box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
+            }
+        }
+    </style>
+    
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+            min-height: 100vh;
+            font-family: 'Inter', system-ui, sans-serif;
+            font-size: 14px; /* 整体字体缩小 */
+        }
+        
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(var(--columns), 1fr);
+            grid-template-rows: repeat(var(--rows), 1fr);
+            gap: 8px;
+        }
+        
+        .game-card {
+            aspect-ratio: 1/1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .game-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%);
+            z-index: 1;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .game-card:hover::before {
+            opacity: 1;
+        }
+        
+        .game-card.selected {
+            transform: scale(0.95);
+        }
+        
+        .game-card.matched {
+            animation: fadeOut 0.5s ease forwards;
+        }
+        
+        @keyframes fadeOut {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
+            100% { opacity: 0; transform: scale(0); }
+        }
+        
+        .popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        
+        .popup.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .popup-content {
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        
+        .popup.active .popup-content {
+            transform: scale(1);
+        }
+        
+        .line {
+            position: absolute;
+            background-color: rgba(99, 102, 241, 0.6);
+            z-index: 50;
+            pointer-events: none;
+            transform-origin: left center;
+        }
+        
+        .timer-progress {
+            height: 4px;
+            background-color: #EC4899;
+            transition: width 1s linear;
+        }
+        
+        /* 规则图标样式 */
+        .rules-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: rgba(99, 102, 241, 0.1);
+            color: #6366F1;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .rules-icon:hover {
+            background-color: rgba(99, 102, 241, 0.2);
+            transform: scale(1.1);
+        }
+        
+        /* 游戏信息紧凑行 - 四个元素在同一行 */
+        .game-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            background-color: rgba(99, 102, 241, 0.05);
+            border-radius: 0.75rem;
+            margin-bottom: 0.75rem;
+            flex-wrap: nowrap;
+            gap: 0.75rem;
+        }
+        
+        .game-info-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            min-width: 0;
+            text-align: center;
+        }
+        
+        .game-info-label {
+            font-size: 0.75rem;
+            color: #6B7280;
+            white-space: nowrap;
+            margin-bottom: 0.25rem;
+        }
+        
+        .game-info-value {
+            font-size: 1rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        
+        .level-badge {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.35rem 0.75rem;
+            background-color: rgba(99, 102, 241, 0.1);
+            border-radius: 0.75rem;
+            white-space: nowrap;
+        }
+        
+        .level-badge-icon {
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .level-badge-label {
+            font-size: 0.75rem;
+            color: #6B7280;
+            margin-bottom: 0.25rem;
+        }
+        
+        .level-badge-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #6366F1;
+        }
+        
+        /* 响应式调整 - 确保在小屏幕上也保持一行显示 */
+        @media (max-width: 640px) {
+            .game-info-row {
+                padding: 0.4rem;
+                gap: 0.5rem;
+            }
+            
+            .game-info-item {
+                flex: 1;
+            }
+            
+            .game-info-label {
+                font-size: 0.7rem;
+            }
+            
+            .game-info-value {
+                font-size: 0.9rem;
+            }
+            
+            .level-badge {
+                padding: 0.3rem 0.6rem;
+            }
+            
+            .level-badge-icon {
+                font-size: 0.75rem;
+            }
+            
+            .level-badge-label {
+                font-size: 0.65rem;
+            }
+            
+            .level-badge-value {
+                font-size: 0.9rem;
+            }
+            
+            .rules-icon {
+                width: 32px;
+                height: 32px;
+            }
+        }
+        
+        /* 超小屏幕特殊处理 */
+        @media (max-width: 360px) {
+            .game-info-row {
+                font-size: 0.8rem;
+            }
+            
+            .game-info-label {
+                font-size: 0.65rem;
+            }
+            
+            .game-info-value {
+                font-size: 0.85rem;
+            }
+            
+            .level-badge {
+                padding: 0.25rem 0.5rem;
+            }
+            
+            .level-badge-icon {
+                font-size: 0.7rem;
+            }
+            
+            .level-badge-label {
+                font-size: 0.6rem;
+            }
+            
+            .level-badge-value {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-start pt-6 pb-12 px-4">
+    <!-- 游戏标题区域 -->
+    <header class="text-center mb-6">
+        <h1 class="text-[clamp(1.5rem,4vw,2.25rem)] font-bold text-primary mb-2">连连看</h1>
+        <p class="text-neutral text-sm">连接相同图案，挑战你的眼力和速度！</p>
+    </header>
+    
+    <!-- 游戏容器 -->
+    <main class="w-full max-w-4xl bg-white rounded-2xl p-4 md:p-6 game-shadow">
+        <!-- 游戏信息紧凑行 - 包含关卡信息、剩余时间、得分和规则按钮，强制在同一行 -->
+        <div class="game-info-row">
+            <div class="level-badge">
+                <i class="fas fa-signal text-primary level-badge-icon"></i>
+                <span class="level-badge-label">当前关卡</span>
+                <span id="levelDisplay" class="level-badge-value">1</span>
+            </div>
+            
+            <div class="game-info-item">
+                <i class="fas fa-clock text-primary mb-1"></i>
+                <span class="game-info-label">剩余时间</span>
+                <span id="timeDisplay" class="game-info-value">60秒</span>
+            </div>
+            
+            <div class="game-info-item">
+                <i class="fas fa-star text-secondary mb-1"></i>
+                <span class="game-info-label">得分</span>
+                <span id="scoreDisplay" class="game-info-value">0</span>
+            </div>
+            
+            <!-- 规则图标 -->
+            <div id="rulesIcon" class="rules-icon">
+                <i class="fas fa-question-circle text-sm"></i>
+            </div>
+        </div>
+        
+        <!-- 计时器进度条 -->
+        <div class="w-full bg-gray-100 rounded-full mb-4 overflow-hidden">
+            <div id="timerProgress" class="timer-progress w-full"></div>
+        </div>
+        
+        <!-- 游戏主面板 -->
+        <div id="gameBoard" class="game-board w-full" style="--columns: 6; --rows: 6;"></div>
+        
+        <!-- 游戏结束弹窗 -->
+        <div id="gameOverPopup" class="popup">
+            <div class="popup-content bg-white rounded-2xl p-6 max-w-md w-full text-center">
+                <div id="resultIcon" class="text-5xl mb-3"></div>
+                <h2 id="resultTitle" class="text-xl font-bold mb-2"></h2>
+                <p id="resultMessage" class="text-neutral mb-4 text-sm"></p>
+                <div class="mb-4">
+                    <div class="text-xs text-neutral mb-1">最终得分</div>
+                    <div id="finalScore" class="text-2xl font-bold text-primary"></div>
+                </div>
+                <div class="flex gap-3 justify-center">
+                    <button id="playAgainButton" class="bg-primary hover:bg-primary/90 text-white px-5 py-2 rounded-full font-medium transition-all duration-300 btn-shadow hover:btn-shadow-hover text-sm">
+                        再玩一次
+                    </button>
+                    <button id="nextLevelButton" class="bg-accent hover:bg-accent/90 text-white px-5 py-2 rounded-full font-medium transition-all duration-300 btn-shadow hover:btn-shadow-hover text-sm">
+                        下一关
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 无解提示弹窗 -->
+        <div id="noSolutionPopup" class="popup">
+            <div class="popup-content bg-white rounded-2xl p-6 max-w-md w-full text-center">
+                <div class="text-danger text-5xl mb-3"><i class="fas fa-exclamation-triangle"></i></div>
+                <h2 class="text-xl font-bold mb-2">挑战失败</h2>
+                <p class="text-neutral mb-4 text-sm">当前游戏已无解，请重新开始挑战。</p>
+                <button id="restartAfterNoSolutionButton" class="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-full font-medium transition-all duration-300 btn-shadow hover:btn-shadow-hover text-sm">
+                    重新开始
+                </button>
+            </div>
+        </div>
+        
+        <!-- 游戏规则弹窗 -->
+        <div id="rulesPopup" class="popup">
+            <div class="popup-content bg-white rounded-2xl p-6 max-w-2xl w-full">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold">游戏规则</h2>
+                    <button id="closeRulesButton" class="text-neutral hover:text-primary transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <ul class="text-neutral space-y-3 text-sm">
+                    <li class="flex items-start">
+                        <i class="fas fa-check-circle text-accent mt-1 mr-3"></i>
+                        <span>点击两个相同图案的方块，如果它们之间可以通过不多于三条直线连接且中间没有其他方块阻挡，则消除这两个方块</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check-circle text-accent mt-1 mr-3"></i>
+                        <span>在限定时间内消除所有方块即可获胜</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check-circle text-accent mt-1 mr-3"></i>
+                        <span>每消除一对方块获得10分，连续消除可获得额外奖励分</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check-circle text-accent mt-1 mr-3"></i>
+                        <span>随着关卡提升，游戏难度会逐渐增加，包括时间限制缩短、棋盘变大和图标种类增加</span>
+                    </li>
+                </ul>
+                <div class="text-center mt-6">
+                    <button id="gotItButton" class="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-full font-medium transition-all duration-300 btn-shadow hover:btn-shadow-hover text-sm">
+                        明白了
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- 连线容器 -->
+    <div id="linesContainer" class="fixed top-0 left-0 w-full h-full pointer-events-none z-50"></div>
+    
+    <!-- 页脚 -->
+    <footer class="mt-auto pt-6 text-center text-neutral text-xs">
+        <p>created by <a href="https://space.coze.cn" class="text-primary hover:underline" target="_blank">coze space</a></p>
+        <p class="mt-1">页面内容均由 AI 生成，仅供参考</p>
+    </footer>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // 游戏配置 - 不同关卡的难度设置
+            const levelConfigs = [
+                { rows: 4, cols: 4, timeLimit: 60, iconCount: 4, baseScore: 10, comboBonus: 5 }, // 关卡1
+                { rows: 4, cols: 6, timeLimit: 75, iconCount: 6, baseScore: 10, comboBonus: 5 }, // 关卡2
+                { rows: 6, cols: 6, timeLimit: 90, iconCount: 9, baseScore: 10, comboBonus: 5 }, // 关卡3
+                { rows: 6, cols: 8, timeLimit: 120, iconCount: 12, baseScore: 10, comboBonus: 5 }, // 关卡4
+                { rows: 8, cols: 8, timeLimit: 150, iconCount: 16, baseScore: 10, comboBonus: 5 }, // 关卡5
+                { rows: 8, cols: 10, timeLimit: 180, iconCount: 20, baseScore: 10, comboBonus: 5 }, // 关卡6
+                { rows: 10, cols: 10, timeLimit: 210, iconCount: 25, baseScore: 10, comboBonus: 5 } // 关卡7
+            ];
+            
+            // 可用的图标集合
+            const allIcons = [
+                'fa-apple-alt', 'fa-anchor', 'fa-bell', 'fa-bolt', 
+                'fa-book', 'fa-car', 'fa-cat', 'fa-coffee', 
+                'fa-dog', 'fa-fish', 'fa-gamepad', 'fa-gift', 
+                'fa-heart', 'fa-key', 'fa-leaf', 'fa-moon',
+                'fa-star', 'fa-tree', 'fa-umbrella', 'fa-wallet',
+                'fa-bicycle', 'fa-camera', 'fa-chess', 'fa-drum',
+                'fa-feather', 'fa-gem', 'fa-hat-wizard', 'fa-ice-cream'
+            ];
+            
+            // 游戏状态
+            const gameState = {
+                currentLevel: 0, // 当前关卡索引
+                config: levelConfigs[0], // 当前关卡配置
+                board: [],
+                selectedCards: [],
+                matchedPairs: 0,
+                totalPairs: 0,
+                score: 0,
+                timeLeft: 0,
+                isPlaying: false,
+                timer: null,
+                comboCount: 0,
+                lastMatchTime: 0,
+                unlockedLevels: 1 // 已解锁的关卡数量
+            };
+            
+            // DOM元素
+            const gameBoard = document.getElementById('gameBoard');
+            const timeDisplay = document.getElementById('timeDisplay');
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            const levelDisplay = document.getElementById('levelDisplay');
+            const gameOverPopup = document.getElementById('gameOverPopup');
+            const resultIcon = document.getElementById('resultIcon');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultMessage = document.getElementById('resultMessage');
+            const finalScore = document.getElementById('finalScore');
+            const playAgainButton = document.getElementById('playAgainButton');
+            const nextLevelButton = document.getElementById('nextLevelButton');
+            const timerProgress = document.getElementById('timerProgress');
+            const linesContainer = document.getElementById('linesContainer');
+            const noSolutionPopup = document.getElementById('noSolutionPopup');
+            const restartAfterNoSolutionButton = document.getElementById('restartAfterNoSolutionButton');
+            const rulesIcon = document.getElementById('rulesIcon');
+            const rulesPopup = document.getElementById('rulesPopup');
+            const closeRulesButton = document.getElementById('closeRulesButton');
+            const gotItButton = document.getElementById('gotItButton');
+            
+            // 初始化游戏
+            function initGame() {
+                // 重置游戏状态
+                gameState.board = [];
+                gameState.selectedCards = [];
+                gameState.matchedPairs = 0;
+                gameState.score = 0;
+                gameState.timeLeft = gameState.config.timeLimit;
+                gameState.isPlaying = false;
+                gameState.comboCount = 0;
+                gameState.lastMatchTime = 0;
+                
+                // 更新UI
+                updateScore();
+                updateTime();
+                updateLevelDisplay();
+                timerProgress.style.width = '100%';
+                gameBoard.innerHTML = '';
+                linesContainer.innerHTML = '';
+                
+                // 设置游戏板尺寸
+                gameBoard.style.setProperty('--columns', gameState.config.cols);
+                gameBoard.style.setProperty('--rows', gameState.config.rows);
+                
+                // 生成有解的游戏板
+                generateSolvableGameBoard();
+            }
+            
+            // 生成有解的游戏板
+            function generateSolvableGameBoard() {
+                // 计算需要的图标数量
+                const totalCells = gameState.config.rows * gameState.config.cols;
+                const pairsNeeded = totalCells / 2;
+                
+                // 确保总格子数是偶数
+                if (totalCells % 2 !== 0) {
+                    console.error('游戏板格子数必须是偶数');
+                    return;
+                }
+                
+                // 从所有图标中选择指定数量的图标
+                const selectedIcons = [];
+                while (selectedIcons.length < Math.min(gameState.config.iconCount, allIcons.length)) {
+                    const randomIndex = Math.floor(Math.random() * allIcons.length);
+                    if (!selectedIcons.includes(allIcons[randomIndex])) {
+                        selectedIcons.push(allIcons[randomIndex]);
+                    }
+                }
+                
+                // 创建配对
+                let iconPairs = [];
+                let remainingPairs = pairsNeeded;
+                
+                // 先分配每种图标至少一对
+                selectedIcons.forEach(icon => {
+                    if (remainingPairs > 0) {
+                        iconPairs.push(icon, icon);
+                        remainingPairs--;
+                    }
+                });
+                
+                // 剩余的配对随机分配
+                while (remainingPairs > 0) {
+                    const randomIcon = selectedIcons[Math.floor(Math.random() * selectedIcons.length)];
+                    iconPairs.push(randomIcon, randomIcon);
+                    remainingPairs--;
+                }
+                
+                // 打乱图标顺序
+                for (let i = iconPairs.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [iconPairs[i], iconPairs[j]] = [iconPairs[j], iconPairs[i]];
+                }
+                
+                // 创建游戏板数据结构
+                for (let row = 0; row < gameState.config.rows; row++) {
+                    gameState.board[row] = [];
+                    for (let col = 0; col < gameState.config.cols; col++) {
+                        const index = row * gameState.config.cols + col;
+                        gameState.board[row][col] = {
+                            icon: iconPairs[index],
+                            matched: false,
+                            element: null
+                        };
+                    }
+                }
+                
+                // 确保游戏板有解
+                if (!hasSolution()) {
+                    // 如果无解，重新生成
+                    generateSolvableGameBoard();
+                    return;
+                }
+                
+                // 渲染游戏板
+                renderGameBoard();
+                
+                // 设置总配对数
+                gameState.totalPairs = pairsNeeded;
+            }
+            
+            // 检查游戏板是否有解
+            function hasSolution() {
+                // 遍历所有未匹配的卡片，检查是否存在可连接的对
+                for (let row1 = 0; row1 < gameState.config.rows; row1++) {
+                    for (let col1 = 0; col1 < gameState.config.cols; col1++) {
+                        if (gameState.board[row1][col1].matched) continue;
+                        
+                        for (let row2 = row1; row2 < gameState.config.rows; row2++) {
+                            for (let col2 = (row2 === row1) ? col1 + 1 : 0; col2 < gameState.config.cols; col2++) {
+                                if (gameState.board[row2][col2].matched) continue;
+                                
+                                // 如果找到两个相同的图标且可以连接，则游戏板有解
+                                if (gameState.board[row1][col1].icon === gameState.board[row2][col2].icon && 
+                                    canConnect(row1, col1, row2, col2)) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // 没有找到可连接的对，游戏板无解
+                return false;
+            }
+            
+            // 渲染游戏板
+            function renderGameBoard() {
+                gameBoard.innerHTML = '';
+                
+                for (let row = 0; row < gameState.config.rows; row++) {
+                    for (let col = 0; col < gameState.config.cols; col++) {
+                        const card = document.createElement('div');
+                        card.className = 'game-card bg-gray-50 rounded-lg card-shadow hover:card-shadow-hover';
+                        card.dataset.row = row;
+                        card.dataset.col = col;
+                        
+                        const icon = document.createElement('i');
+                        icon.className = `fas ${gameState.board[row][col].icon} text-lg md:text-xl text-primary`;
+                        card.appendChild(icon);
+                        
+                        // 添加点击事件
+                        card.addEventListener('click', () => handleCardClick(row, col));
+                        
+                        gameBoard.appendChild(card);
+                        gameState.board[row][col].element = card;
+                    }
+                }
+                
+                // 响应式调整
+                adjustForScreenSize();
+            }
+            
+            // 处理卡片点击
+            function handleCardClick(row, col) {
+                // 如果游戏未开始或卡片已匹配或已选中，则不处理
+                if (!gameState.isPlaying || gameState.board[row][col].matched || 
+                    (gameState.selectedCards.length > 0 && 
+                     gameState.selectedCards[0].row === row && 
+                     gameState.selectedCards[0].col === col)) {
+                    return;
+                }
+                
+                // 如果已经选中两张卡片，则不处理
+                if (gameState.selectedCards.length === 2) {
+                    return;
+                }
+                
+                // 选中当前卡片
+                const card = gameState.board[row][col];
+                card.element.classList.add('selected', 'bg-primary/10');
+                
+                // 添加到选中列表
+                gameState.selectedCards.push({ row, col, icon: card.icon });
+                
+                // 如果选中了两张卡片，检查是否匹配
+                if (gameState.selectedCards.length === 2) {
+                    checkMatch();
+                }
+            }
+            
+            // 检查两张选中的卡片是否匹配
+            function checkMatch() {
+                const [card1, card2] = gameState.selectedCards;
+                
+                // 检查图标是否相同
+                if (card1.icon === card2.icon) {
+                    // 检查是否可以连接
+                    if (canConnect(card1.row, card1.col, card2.row, card2.col)) {
+                        // 显示连线动画
+                        drawConnection(card1.row, card1.col, card2.row, card2.col);
+                        
+                        // 延迟后处理匹配
+                        setTimeout(() => {
+                            // 标记为已匹配
+                            gameState.board[card1.row][card1.col].matched = true;
+                            gameState.board[card2.row][card2.col].matched = true;
+                            
+                            // 添加匹配动画
+                            gameState.board[card1.row][card1.col].element.classList.add('matched');
+                            gameState.board[card2.row][card2.col].element.classList.add('matched');
+                            
+                            // 增加匹配数
+                            gameState.matchedPairs++;
+                            
+                            // 计算得分（包括连击奖励）
+                            calculateScore();
+                            
+                            // 检查游戏是否结束
+                            checkGameOver();
+                            
+                            // 清除选中状态
+                            gameState.selectedCards = [];
+                            
+                            // 清除连线
+                            linesContainer.innerHTML = '';
+                            
+                            // 检查是否还有解
+                            if (!hasSolution() && gameState.matchedPairs < gameState.totalPairs) {
+                                setTimeout(() => {
+                                    showNoSolutionPopup();
+                                }, 500);
+                            }
+                        }, 800);
+                    } else {
+                        // 不能连接，取消选中
+                        setTimeout(() => {
+                            gameState.board[card1.row][card1.col].element.classList.remove('selected', 'bg-primary/10');
+                            gameState.board[card2.row][card2.col].element.classList.remove('selected', 'bg-primary/10');
+                            gameState.selectedCards = [];
+                            
+                            // 重置连击计数
+                            gameState.comboCount = 0;
+                        }, 500);
+                    }
+                } else {
+                    // 图标不同，取消选中
+                    setTimeout(() => {
+                        gameState.board[card1.row][card1.col].element.classList.remove('selected', 'bg-primary/10');
+                        gameState.board[card2.row][card2.col].element.classList.remove('selected', 'bg-primary/10');
+                        gameState.selectedCards = [];
+                        
+                        // 重置连击计数
+                        gameState.comboCount = 0;
+                    }, 500);
+                }
+            }
+            
+            // 检查两张卡片是否可以连接
+            function canConnect(row1, col1, row2, col2) {
+                // 直接相连（同一行或同一列，且中间没有其他卡片）
+                if (row1 === row2) {
+                    const minCol = Math.min(col1, col2);
+                    const maxCol = Math.max(col1, col2);
+                    for (let col = minCol + 1; col < maxCol; col++) {
+                        if (!gameState.board[row1][col].matched) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+                
+                if (col1 === col2) {
+                    const minRow = Math.min(row1, row2);
+                    const maxRow = Math.max(row1, row2);
+                    for (let row = minRow + 1; row < maxRow; row++) {
+                        if (!gameState.board[row][col1].matched) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+                
+                // 一次拐弯连接
+                // 上右下左四个方向尝试
+                if (checkOneCorner(row1, col1, row2, col2)) {
+                    return true;
+                }
+                
+                // 两次拐弯连接
+                if (checkTwoCorners(row1, col1, row2, col2)) {
+                    return true;
+                }
+                
+                return false;
+            }
+            
+            // 检查一次拐弯连接
+            function checkOneCorner(row1, col1, row2, col2) {
+                // 尝试在(row1, col2)拐弯
+                if (isPathClear(row1, col1, row1, col2) && isPathClear(row1, col2, row2, col2)) {
+                    return true;
+                }
+                
+                // 尝试在(row2, col1)拐弯
+                if (isPathClear(row1, col1, row2, col1) && isPathClear(row2, col1, row2, col2)) {
+                    return true;
+                }
+                
+                return false;
+            }
+            
+            // 检查两次拐弯连接
+            function checkTwoCorners(row1, col1, row2, col2) {
+                // 尝试所有可能的中间点
+                for (let row = 0; row < gameState.config.rows; row++) {
+                    if (row !== row1 && row !== row2 && 
+                        isPathClear(row1, col1, row, col1) && 
+                        isPathClear(row, col1, row, col2) && 
+                        isPathClear(row, col2, row2, col2)) {
+                        return true;
+                    }
+                }
+                
+                for (let col = 0; col < gameState.config.cols; col++) {
+                    if (col !== col1 && col !== col2 && 
+                        isPathClear(row1, col1, row1, col) && 
+                        isPathClear(row1, col, row2, col) && 
+                        isPathClear(row2, col, row2, col2)) {
+                        return true;
+                    }
+                }
+                
+                return false;
+            }
+            
+            // 检查路径是否清晰
+            function isPathClear(row1, col1, row2, col2) {
+                // 同一位置
+                if (row1 === row2 && col1 === col2) {
+                    return true;
+                }
+                
+                // 同一行
+                if (row1 === row2) {
+                    const minCol = Math.min(col1, col2);
+                    const maxCol = Math.max(col1, col2);
+                    for (let col = minCol + 1; col < maxCol; col++) {
+                        if (!gameState.board[row1][col].matched) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+                
+                // 同一列
+                if (col1 === col2) {
+                    const minRow = Math.min(row1, row2);
+                    const maxRow = Math.max(row1, row2);
+                    for (let row = minRow + 1; row < maxRow; row++) {
+                        if (!gameState.board[row][col1].matched) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+                
+                return false;
+            }
+            
+            // 绘制连接线
+            function drawConnection(row1, col1, row2, col2) {
+                const card1 = gameState.board[row1][col1].element;
+                const card2 = gameState.board[row2][col2].element;
+                
+                const rect1 = card1.getBoundingClientRect();
+                const rect2 = card2.getBoundingClientRect();
+                
+                const x1 = rect1.left + rect1.width / 2;
+                const y1 = rect1.top + rect1.height / 2;
+                const x2 = rect2.left + rect2.width / 2;
+                const y2 = rect2.top + rect2.height / 2;
+                
+                // 计算距离和角度
+                const distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+                const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+                
+                // 创建线条元素
+                const line = document.createElement('div');
+                line.className = 'line';
+                line.style.width = `${distance}px`;
+                line.style.height = '4px';
+                line.style.left = `${x1}px`;
+                line.style.top = `${y1}px`;
+                line.style.transform = `rotate(${angle}deg)`;
+                
+                linesContainer.appendChild(line);
+            }
+            
+            // 计算得分
+            function calculateScore() {
+                const now = Date.now();
+                const timeSinceLastMatch = now - gameState.lastMatchTime;
+                
+                // 如果距离上次匹配少于2秒，则视为连击
+                if (timeSinceLastMatch < 2000 && gameState.lastMatchTime > 0) {
+                    gameState.comboCount++;
+                } else {
+                    gameState.comboCount = 0;
+                }
+                
+                // 计算本次得分
+                const comboBonus = gameState.comboCount * gameState.config.comboBonus;
+                const totalPoints = gameState.config.baseScore + comboBonus;
+                
+                // 更新总分
+                gameState.score += totalPoints;
+                
+                // 更新UI
+                updateScore();
+                
+                // 显示得分动画
+                showScoreAnimation(totalPoints);
+                
+                // 记录本次匹配时间
+                gameState.lastMatchTime = now;
+            }
+            
+            // 显示得分动画
+            function showScoreAnimation(points) {
+                const [card1] = gameState.selectedCards;
+                const cardElement = gameState.board[card1.row][card1.col].element;
+                
+                const scorePopup = document.createElement('div');
+                scorePopup.className = 'absolute text-accent font-bold text-sm';
+                scorePopup.textContent = `+${points}`;
+                
+                // 设置位置
+                const rect = cardElement.getBoundingClientRect();
+                const boardRect = gameBoard.getBoundingClientRect();
+                
+                scorePopup.style.left = `${rect.left - boardRect.left + rect.width / 2}px`;
+                scorePopup.style.top = `${rect.top - boardRect.top - 15}px`;
+                scorePopup.style.transform = 'translate(-50%, 0)';
+                scorePopup.style.opacity = '0';
+                scorePopup.style.transition = 'all 0.6s ease-out';
+                
+                gameBoard.appendChild(scorePopup);
+                
+                // 触发动画
+                setTimeout(() => {
+                    scorePopup.style.opacity = '1';
+                    scorePopup.style.transform = 'translate(-50%, -15px)';
+                }, 10);
+                
+                // 移除元素
+                setTimeout(() => {
+                    scorePopup.remove();
+                }, 600);
+            }
+            
+            // 更新得分显示
+            function updateScore() {
+                scoreDisplay.textContent = gameState.score;
+            }
+            
+            // 更新时间显示
+            function updateTime() {
+                timeDisplay.textContent = `${gameState.timeLeft}秒`;
+                timerProgress.style.width = `${(gameState.timeLeft / gameState.config.timeLimit) * 100}%`;
+            }
+            
+            // 更新关卡显示
+            function updateLevelDisplay() {
+                levelDisplay.textContent = gameState.currentLevel + 1;
+            }
+            
+            // 检查游戏是否结束
+            function checkGameOver() {
+                // 检查是否所有卡片都已匹配
+                if (gameState.matchedPairs === gameState.totalPairs) {
+                    endGame(true);
+                    return;
+                }
+                
+                // 检查时间是否用完
+                if (gameState.timeLeft <= 0) {
+                    endGame(false);
+                }
+            }
+            
+            // 结束游戏
+            function endGame(isWin) {
+                // 停止计时器
+                clearInterval(gameState.timer);
+                gameState.isPlaying = false;
+                
+                // 更新弹窗内容
+                if (isWin) {
+                    resultIcon.className = 'fas fa-trophy text-yellow-500 text-5xl mb-3';
+                    resultTitle.textContent = '恭喜你赢了！';
+                    resultMessage.textContent = `你成功通过了第${gameState.currentLevel + 1}关，太棒了！`;
+                    
+                    // 解锁下一关
+                    if (gameState.currentLevel + 1 < levelConfigs.length) {
+                        gameState.unlockedLevels = Math.max(gameState.unlockedLevels, gameState.currentLevel + 2);
+                    }
+                    
+                    // 如果是最后一关，隐藏下一关按钮
+                    if (gameState.currentLevel >= levelConfigs.length - 1) {
+                        nextLevelButton.style.display = 'none';
+                    } else {
+                        nextLevelButton.style.display = 'inline-block';
+                    }
+                } else {
+                    resultIcon.className = 'fas fa-times-circle text-red-500 text-5xl mb-3';
+                    resultTitle.textContent = '游戏结束';
+                    resultMessage.textContent = `时间到！再试一次吧。`;
+                    nextLevelButton.style.display = 'none';
+                }
+                
+                // 显示最终得分
+                finalScore.textContent = gameState.score;
+                
+                // 显示弹窗
+                gameOverPopup.classList.add('active');
+            }
+            
+            // 开始游戏
+            function startGame() {
+                // 如果游戏已经在进行中，不处理
+                if (gameState.isPlaying) {
+                    return;
+                }
+                
+                // 重置游戏
+                initGame();
+                
+                // 开始计时
+                gameState.isPlaying = true;
+                gameState.timer = setInterval(() => {
+                    gameState.timeLeft--;
+                    updateTime();
+                    checkGameOver();
+                }, 1000);
+            }
+            
+            // 重置游戏
+            function resetGame() {
+                // 停止计时器
+                clearInterval(gameState.timer);
+                
+                // 初始化游戏
+                initGame();
+                
+                // 隐藏弹窗
+                gameOverPopup.classList.remove('active');
+                noSolutionPopup.classList.remove('active');
+                rulesPopup.classList.remove('active');
+                
+                // 自动开始游戏
+                setTimeout(startGame, 500);
+            }
+            
+            // 进入下一关
+            function nextLevel() {
+                // 检查是否有下一关
+                if (gameState.currentLevel >= levelConfigs.length - 1) {
+                    return;
+                }
+                
+                // 切换到下一关
+                gameState.currentLevel++;
+                gameState.config = levelConfigs[gameState.currentLevel];
+                
+                // 重置游戏
+                resetGame();
+            }
+            
+            // 显示无解提示弹窗
+            function showNoSolutionPopup() {
+                // 停止计时器
+                clearInterval(gameState.timer);
+                gameState.isPlaying = false;
+                
+                // 显示弹窗
+                noSolutionPopup.classList.add('active');
+            }
+            
+            // 显示游戏规则弹窗
+            function showRulesPopup() {
+                rulesPopup.classList.add('active');
+            }
+            
+            // 隐藏游戏规则弹窗
+            function hideRulesPopup() {
+                rulesPopup.classList.remove('active');
+            }
+            
+            // 响应式调整
+            function adjustForScreenSize() {
+                const screenWidth = window.innerWidth;
+                
+                // 在小屏幕上调整图标大小
+                const cards = document.querySelectorAll('.game-card i');
+                if (screenWidth < 640) {
+                    cards.forEach(card => {
+                        card.className = card.className.replace('text-lg', 'text-sm');
+                        card.className = card.className.replace('text-xl', 'text-sm');
+                    });
+                } else {
+                    cards.forEach(card => {
+                        card.className = card.className.replace('text-sm', 'text-lg');
+                    });
+                }
+            }
+            
+            // 事件监听
+            playAgainButton.addEventListener('click', resetGame);
+            nextLevelButton.addEventListener('click', nextLevel);
+            restartAfterNoSolutionButton.addEventListener('click', resetGame);
+            rulesIcon.addEventListener('click', showRulesPopup);
+            closeRulesButton.addEventListener('click', hideRulesPopup);
+            gotItButton.addEventListener('click', hideRulesPopup);
+            
+            // 窗口大小变化时调整
+            window.addEventListener('resize', adjustForScreenSize);
+            
+            // 初始化游戏并自动开始
+            initGame();
+            setTimeout(startGame, 500);
+        });
+    </script>
+</body>
+</html>

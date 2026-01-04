@@ -1,0 +1,1678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>趣味消消乐 - 稳定版</title>
+    <script src="https://cdn.tailwindcss.com/3.3.3"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+            color: #2d3748;
+            overflow-x: hidden;
+        }
+        
+        .game-container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            gap: 2px;
+            background-color: rgba(255, 255, 255, 0.3);
+            padding: 8px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .game-cell {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .game-cell:hover {
+            transform: scale(1.05);
+        }
+        
+        .game-cell.selected {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 3px #4f46e5, inset 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* 优化的消除动画效果：红色边框闪烁+内部发光效果 */
+        .game-cell.matching {
+            animation: highlightElimination 0.8s ease-in-out;
+            position: relative;
+            z-index: 2;
+        }
+        
+        @keyframes highlightElimination {
+            0% { 
+                box-shadow: 0 0 0 0px rgba(239, 68, 68, 0.7), inset 0 0 0 rgba(239, 68, 68, 0.5);
+            }
+            25% { 
+                box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.9), inset 0 0 20px rgba(239, 68, 68, 0.7);
+            }
+            50% { 
+                box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.8), inset 0 0 15px rgba(239, 68, 68, 0.6);
+            }
+            75% { 
+                box-shadow: 0 0 0 5px rgba(239, 68, 68, 1), inset 0 0 25px rgba(239, 68, 68, 0.8);
+            }
+            100% { 
+                box-shadow: 0 0 0 0px rgba(239, 68, 68, 0), inset 0 0 0 rgba(239, 68, 68, 0);
+                opacity: 0;
+            }
+        }
+        
+        /* 基础下落动画 */
+        .game-cell.falling {
+            animation: fallAnimation 0.6s ease-out forwards;
+        }
+        
+        @keyframes fallAnimation {
+            0% {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .game-cell.bomb {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        
+        .game-cell.demon-king {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+            border: 2px solid #f59e0b;
+        }
+        
+        .game-cell.invalid-swap {
+            box-shadow: 0 0 0 3px #ef4444, inset 0 2px 4px rgba(0, 0, 0, 0.1);
+            animation: shake 0.3s ease-in-out;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        .glassmorphism {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+        }
+        
+        .level-info {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        
+        .level-number {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 6px solid #e2e8f0;
+            border-top: 6px solid #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 18px;
+            color: #4f46e5;
+            font-weight: 500;
+            text-align: center;
+        }
+        
+        .game-info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 4px 12px rgba(31, 38, 135, 0.1);
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+        }
+        
+        .info-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 2px;
+        }
+        
+        .info-value {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .info-value.score {
+            color: #4f46e5;
+        }
+        
+        .info-value.steps {
+            color: #f59e0b;
+        }
+        
+        .info-value.target {
+            color: #10b981;
+        }
+        
+        .countdown-container {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+        }
+        
+        .countdown-icon {
+            margin-right: 4px;
+            font-size: 12px;
+        }
+        
+        .time-warning {
+            animation: timeWarning 1s infinite;
+        }
+        
+        @keyframes timeWarning {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background-color: #e2e8f0;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 4px;
+            width: 100%;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        
+        .game-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        
+        .game-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .overlay-content {
+            background: white;
+            border-radius: 20px;
+            padding: 32px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        
+        .game-overlay.active .overlay-content {
+            transform: scale(1);
+        }
+        
+        .success-icon {
+            font-size: 64px;
+            color: #10b981;
+            margin-bottom: 16px;
+        }
+        
+        .fail-icon {
+            font-size: 64px;
+            color: #ef4444;
+            margin-bottom: 16px;
+        }
+        
+        .overlay-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 16px;
+            color: #1e293b;
+        }
+        
+        .overlay-description {
+            font-size: 16px;
+            color: #64748b;
+            margin-bottom: 24px;
+        }
+        
+        .overlay-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 24px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4f46e5;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #64748b;
+        }
+        
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #334155;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            background: #cbd5e1;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary:active {
+            transform: translateY(0);
+        }
+        
+        .retry-button {
+            margin-top: 20px;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .retry-button:hover {
+            background: #4338ca;
+            transform: translateY(-2px);
+        }
+        
+        /* 关卡过渡标题样式 */
+        .level-transition-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 4000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+        
+        .level-transition-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .level-transition-title {
+            font-size: 64px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .level-transition-subtitle {
+            font-size: 24px;
+            color: rgba(255, 255, 255, 0.9);
+            margin-top: 16px;
+        }
+        
+        /* 规则按钮和弹窗样式 */
+        .rules-button {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 12px rgba(31, 38, 135, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #4f46e5;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+        
+        .rules-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(31, 38, 135, 0.2);
+        }
+        
+        .rules-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        
+        .rules-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .rules-content {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        
+        .rules-overlay.active .rules-content {
+            transform: scale(1);
+        }
+        
+        .rules-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 16px;
+            color: #1e293b;
+            text-align: center;
+        }
+        
+        .rules-list {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 24px;
+        }
+        
+        .rules-list li {
+            margin-bottom: 12px;
+            padding-left: 28px;
+            position: relative;
+            color: #475569;
+        }
+        
+        .rules-list li i {
+            position: absolute;
+            left: 0;
+            top: 2px;
+            color: #4f46e5;
+        }
+        
+        .close-rules {
+            background: #e2e8f0;
+            color: #334155;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .close-rules:hover {
+            background: #cbd5e1;
+            transform: translateY(-2px);
+        }
+        
+        @media (max-width: 640px) {
+            .game-container {
+                max-width: 90vw;
+            }
+            
+            .game-cell {
+                font-size: 16px;
+            }
+            
+            .info-value {
+                font-size: 14px;
+            }
+            
+            .info-label {
+                font-size: 10px;
+            }
+            
+            .overlay-content {
+                padding: 24px;
+            }
+            
+            .level-transition-title {
+                font-size: 48px;
+            }
+            
+            .level-transition-subtitle {
+                font-size: 20px;
+            }
+            
+            .rules-button {
+                width: 36px;
+                height: 36px;
+                font-size: 18px;
+            }
+            
+            .rules-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+    <!-- 加载遮罩 -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loadingText">游戏加载中...</div>
+        <button class="retry-button" id="retryLoadButton" style="display: none;">
+            <i class="fas fa-redo mr-2"></i>重试加载
+        </button>
+    </div>
+
+    <!-- 游戏成功弹窗 -->
+    <div class="game-overlay" id="successOverlay">
+        <div class="overlay-content">
+            <div class="success-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h2 class="overlay-title">挑战成功！</h2>
+            <p class="overlay-description">恭喜您完成了第 <span id="completedLevel">1</span> 关的挑战！</p>
+            <div class="overlay-stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="successScore">0</div>
+                    <div class="stat-label">最终得分</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="remainingStepsValue">0</div>
+                    <div class="stat-label">剩余步数</div>
+                </div>
+            </div>
+            <button class="btn-secondary" id="nextLevelBtn">
+                <i class="fas fa-arrow-right mr-2"></i>下一关
+            </button>
+        </div>
+    </div>
+
+    <!-- 游戏失败弹窗 -->
+    <div class="game-overlay" id="failOverlay">
+        <div class="overlay-content">
+            <div class="fail-icon">
+                <i class="fas fa-times-circle"></i>
+            </div>
+            <h2 class="overlay-title">挑战失败</h2>
+            <p class="overlay-description">很遗憾，未能完成第 <span id="failedLevel">1</span> 关的目标。</p>
+            <div class="overlay-stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="failScore">0</div>
+                    <div class="stat-label">得分</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="requiredScore">0</div>
+                    <div class="stat-label">目标得分</div>
+                </div>
+            </div>
+            <button class="btn-secondary" id="retryBtn">
+                <i class="fas fa-redo mr-2"></i>重玩本关
+            </button>
+        </div>
+    </div>
+
+    <!-- 关卡过渡标题 -->
+    <div class="level-transition-overlay" id="levelTransitionOverlay">
+        <div class="level-transition-title" id="levelTransitionTitle">第1关</div>
+        <div class="level-transition-subtitle">准备挑战！</div>
+    </div>
+
+    <!-- 规则弹窗 -->
+    <div class="rules-overlay" id="rulesOverlay">
+        <div class="rules-content">
+            <h2 class="rules-title">游戏规则</h2>
+            <ul class="rules-list">
+                <li><i class="fas fa-check-circle text-green-500 mr-2"></i>点击两个相邻的方块进行交换</li>
+                <li><i class="fas fa-check-circle text-green-500 mr-2"></i>横向或纵向三个及以上相同方块会被消除</li>
+                <li><i class="fas fa-check-circle text-green-500 mr-2"></i>每消除一个方块获得10分</li>
+                <li><i class="fas fa-check-circle text-green-500 mr-2"></i>消除后上方方块会下落，顶部生成新方块</li>
+                <li><i class="fas fa-check-circle text-green-500 mr-2"></i>若交换后未形成可消除的匹配，则方块会自动回到原始位置</li>
+                <li><i class="fas fa-bomb text-red-500 mr-2"></i>炸弹方块：参与消除时会爆炸，消除周围3x3区域内的所有方块</li>
+                <li><i class="fas fa-fire text-purple-500 mr-2"></i>大魔王头像：参与消除时消除所在的整行和整列的所有方块</li>
+                <li><i class="fas fa-trophy text-yellow-500 mr-2"></i>在限定步数和时间内达到目标积分即可通关</li>
+            </ul>
+            <button class="close-rules" id="closeRulesBtn">关闭</button>
+        </div>
+    </div>
+
+    <div class="game-container relative">
+        <!-- 游戏标题 -->
+        <div class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-transparent bg-clip-text">趣味消消乐 - 稳定版</h1>
+            <p class="text-gray-600">挑战关卡，解锁新难度！</p>
+        </div>
+        
+        <!-- 规则按钮 -->
+        <button class="rules-button" id="rulesButton" aria-label="游戏规则">
+            <i class="fas fa-question"></i>
+        </button>
+        
+        <!-- 关卡信息面板 -->
+        <div class="level-info" id="levelInfo">
+            <div class="level-number">第<span id="currentLevel">1</span>关</div>
+        </div>
+        
+        <!-- 游戏信息栏 -->
+        <div class="game-info-bar">
+            <div class="info-item">
+                <div class="info-label">当前得分</div>
+                <div class="info-value score" id="score">0</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">目标得分</div>
+                <div class="info-value target" id="targetScore">500</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="scoreProgress" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">剩余步数</div>
+                <div class="info-value steps" id="remainingSteps">20</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">剩余时间</div>
+                <div class="countdown-container">
+                    <i class="fas fa-clock countdown-icon"></i>
+                    <div class="time-display" id="timeRemaining">05:00</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 游戏网格 -->
+        <div class="game-grid" id="gameGrid"></div>
+    </div>
+    
+    <footer class="mt-12 text-center text-gray-500 text-sm">
+        <p>created by <a href="https://space.coze.cn" class="text-indigo-600 hover:underline">coze space</a></p>
+        <p>页面内容均由 AI 生成，仅供参考</p>
+    </footer>
+    
+    <script>
+        // 游戏配置
+        const config = {
+            gridSize: 8,
+            cellTypes: [
+                { color: '#4f46e5', icon: 'fa-gem' },
+                { color: '#ec4899', icon: 'fa-heart' },
+                { color: '#10b981', icon: 'fa-leaf' },
+                { color: '#f59e0b', icon: 'fa-star' },
+                { color: '#3b82f6', icon: 'fa-snowflake' },
+                { color: '#8b5cf6', icon: 'fa-moon' },
+                { isBomb: true, icon: 'fa-bomb' }, // 炸弹方块类型
+                { isDemonKing: true, icon: 'fa-fire' } // 大魔王头像类型
+            ],
+            pointsPerCell: 10,
+            bombChance: 0.05, // 生成炸弹的概率 (5%)
+            demonKingChance: 0.03, // 生成大魔王头像的概率 (3%)
+            timeLimit: 5 * 60, // 5分钟，单位为秒
+            // 动画时间配置
+            eliminationDuration: 800, // 消除动画时长 0.8秒
+            dropDuration: 600, // 下落动画时长 0.6秒
+        };
+        
+        // 游戏状态 - 会话级临时存储
+        const gameState = {
+            grid: [],
+            score: 0,
+            isPlaying: false,
+            selectedCell: null,
+            isProcessing: false,
+            // 关卡相关状态
+            currentLevel: 1,
+            maxSteps: 20,
+            remainingSteps: 20,
+            targetScore: 500,
+            // 计时相关状态
+            remainingTime: config.timeLimit,
+            countdownInterval: null,
+            // 加载状态
+            loadingStep: 0,
+            loadingTimeout: null,
+            resourceLoadingTimeout: null
+        };
+        
+        // DOM 元素
+        const gameGrid = document.getElementById('gameGrid');
+        const scoreDisplay = document.getElementById('score');
+        const remainingStepsDisplay = document.getElementById('remainingSteps');
+        const currentLevelDisplay = document.getElementById('currentLevel');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingText = document.getElementById('loadingText');
+        const retryLoadButton = document.getElementById('retryLoadButton');
+        const targetScoreDisplay = document.getElementById('targetScore');
+        const scoreProgress = document.getElementById('scoreProgress');
+        const successOverlay = document.getElementById('successOverlay');
+        const failOverlay = document.getElementById('failOverlay');
+        const nextLevelBtn = document.getElementById('nextLevelBtn');
+        const retryBtn = document.getElementById('retryBtn');
+        const completedLevelDisplay = document.getElementById('completedLevel');
+        const successScoreDisplay = document.getElementById('successScore');
+        const remainingStepsValueDisplay = document.getElementById('remainingStepsValue');
+        const failedLevelDisplay = document.getElementById('failedLevel');
+        const failScoreDisplay = document.getElementById('failScore');
+        const requiredScoreDisplay = document.getElementById('requiredScore');
+        const levelTransitionOverlay = document.getElementById('levelTransitionOverlay');
+        const levelTransitionTitle = document.getElementById('levelTransitionTitle');
+        const timeRemainingDisplay = document.getElementById('timeRemaining');
+        const countdownContainer = document.querySelector('.countdown-container');
+        const rulesButton = document.getElementById('rulesButton');
+        const rulesOverlay = document.getElementById('rulesOverlay');
+        const closeRulesBtn = document.getElementById('closeRulesBtn');
+        
+        // 加载状态管理 - 添加时间戳
+        function logLoadingStatus(step, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] 加载阶段 ${step}/4: ${message}`;
+            console.log(logMessage);
+            loadingText.textContent = message;
+        }
+        
+        // 初始化游戏 - 采用同步加载机制
+        function initGame() {
+            // 清除之前的超时计时器
+            if (gameState.loadingTimeout) {
+                clearTimeout(gameState.loadingTimeout);
+            }
+            
+            if (gameState.resourceLoadingTimeout) {
+                clearTimeout(gameState.resourceLoadingTimeout);
+            }
+            
+            // 设置3秒初始化超时
+            gameState.loadingTimeout = setTimeout(() => {
+                const timestamp = new Date().toLocaleTimeString();
+                console.log(`[${timestamp}] 初始化超时: 游戏加载超过3秒`);
+                loadingText.textContent = '初始化超时，请点击重试';
+                retryLoadButton.style.display = 'block';
+            }, 3000);
+            
+            // 设置5秒资源加载超时
+            gameState.resourceLoadingTimeout = setTimeout(() => {
+                const timestamp = new Date().toLocaleTimeString();
+                console.log(`[${timestamp}] 资源加载超时: 游戏资源加载超过5秒`);
+                loadingText.textContent = '资源加载超时，请点击重试';
+                retryLoadButton.style.display = 'block';
+            }, 5000);
+            
+            try {
+                // 步骤1: DOM结构初始化
+                logLoadingStatus(1, 'DOM结构初始化...');
+                // DOM结构已在HTML中定义
+                
+                // 步骤2: 游戏配置加载
+                logLoadingStatus(2, 'CSS样式加载...');
+                // CSS样式已在head中定义
+                
+                // 步骤3: 游戏网格同步渲染
+                logLoadingStatus(3, '游戏网格渲染...');
+                initGameGrid();
+                
+                // 步骤4: 游戏逻辑初始化
+                logLoadingStatus(4, '核心逻辑初始化...');
+                initGameLogic();
+                
+                // 清除加载超时计时器
+                clearTimeout(gameState.loadingTimeout);
+                clearTimeout(gameState.resourceLoadingTimeout);
+                
+                // 隐藏加载遮罩
+                setTimeout(() => {
+                    const timestamp = new Date().toLocaleTimeString();
+                    console.log(`[${timestamp}] 游戏加载完成，准备开始`);
+                    loadingOverlay.style.display = 'none';
+                    // 自动开始游戏
+                    startGame();
+                }, 500);
+            } catch (error) {
+                const timestamp = new Date().toLocaleTimeString();
+                console.error(`[${timestamp}] 加载错误:`, error);
+                loadingText.textContent = '加载失败，请点击重试';
+                retryLoadButton.style.display = 'block';
+            }
+        }
+        
+        // 初始化游戏网格 - 同步加载
+        function initGameGrid() {
+            // 创建游戏网格
+            gameGrid.innerHTML = '';
+            gameState.grid = [];
+            
+            // 同步生成8x8网格
+            for (let row = 0; row < config.gridSize; row++) {
+                gameState.grid[row] = [];
+                for (let col = 0; col < config.gridSize; col++) {
+                    // 确保不会初始就有匹配
+                    let validTypes = [...Array(config.cellTypes.length - 2).keys()]; // 排除炸弹和大魔王头像
+                    
+                    // 检查左侧两个元素
+                    if (col >= 2) {
+                        const left1 = gameState.grid[row][col-1];
+                        const left2 = gameState.grid[row][col-2];
+                        if (left1 === left2 && !config.cellTypes[left1].isBomb && !config.cellTypes[left1].isDemonKing) {
+                            validTypes = validTypes.filter(type => type !== left1);
+                        }
+                    }
+                    
+                    // 检查上方两个元素
+                    if (row >= 2) {
+                        const top1 = gameState.grid[row-1][col];
+                        const top2 = gameState.grid[row-2][col];
+                        if (top1 === top2 && !config.cellTypes[top1].isBomb && !config.cellTypes[top1].isDemonKing) {
+                            validTypes = validTypes.filter(type => type !== top1);
+                        }
+                    }
+                    
+                    // 随机决定是否生成炸弹或大魔王头像
+                    let cellType;
+                    if (Math.random() < config.demonKingChance) {
+                        cellType = config.cellTypes.length - 1; // 大魔王头像类型的索引
+                    } else if (Math.random() < config.bombChance) {
+                        cellType = config.cellTypes.length - 2; // 炸弹类型的索引
+                    } else {
+                        // 如果没有有效的类型可选，就随机选一个
+                        cellType = validTypes.length > 0 
+                            ? validTypes[Math.floor(Math.random() * validTypes.length)]
+                            : Math.floor(Math.random() * (config.cellTypes.length - 2));
+                    }
+                    
+                    gameState.grid[row][col] = cellType;
+                    
+                    // 创建单元格元素
+                    const cell = document.createElement('div');
+                    cell.classList.add('game-cell');
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    
+                    // 设置单元格样式和内容
+                    const typeInfo = config.cellTypes[cellType];
+                    if (typeInfo.isDemonKing) {
+                        cell.classList.add('demon-king');
+                    } else if (typeInfo.isBomb) {
+                        cell.classList.add('bomb');
+                    } else {
+                        cell.style.backgroundColor = typeInfo.color;
+                    }
+                    cell.innerHTML = `<i class="fas ${typeInfo.icon} text-white"></i>`;
+                    
+                    // 添加点击事件
+                    cell.addEventListener('click', handleCellClick);
+                    
+                    gameGrid.appendChild(cell);
+                }
+            }
+        }
+        
+        // 初始化游戏逻辑
+        function initGameLogic() {
+            // 重置游戏状态
+            gameState.score = 0;
+            gameState.isPlaying = false;
+            gameState.selectedCell = null;
+            gameState.isProcessing = false;
+            gameState.remainingTime = config.timeLimit;
+            
+            // 根据当前关卡设置目标
+            setLevelTargets(gameState.currentLevel);
+            
+            // 更新UI显示
+            scoreDisplay.textContent = gameState.score;
+            remainingStepsDisplay.textContent = gameState.remainingSteps;
+            currentLevelDisplay.textContent = gameState.currentLevel;
+            targetScoreDisplay.textContent = gameState.targetScore;
+            scoreProgress.style.width = '0%';
+            updateTimeDisplay();
+            
+            // 检查并消除初始可能的匹配
+            checkAndProcessMatches();
+            
+            // 添加按钮事件
+            nextLevelBtn.addEventListener('click', goToNextLevel);
+            retryBtn.addEventListener('click', retryLevel);
+            retryLoadButton.addEventListener('click', resetAndInitGame);
+            
+            // 添加规则按钮事件
+            rulesButton.addEventListener('click', showRules);
+            closeRulesBtn.addEventListener('click', hideRules);
+        }
+        
+        // 根据关卡设置目标
+        function setLevelTargets(level) {
+            if (level === 1) {
+                gameState.maxSteps = 20;
+                gameState.targetScore = 500;
+            } else if (level === 2) {
+                gameState.maxSteps = 18;
+                gameState.targetScore = 800;
+            } else if (level === 3) {
+                gameState.maxSteps = 16;
+                gameState.targetScore = 1200;
+            } else {
+                // 后续关卡：步数-2、积分+400
+                gameState.maxSteps = 16 - (level - 3) * 2;
+                gameState.targetScore = 1200 + (level - 3) * 400;
+            }
+            
+            // 确保步数不会小于最小值
+            if (gameState.maxSteps < 5) {
+                gameState.maxSteps = 5;
+            }
+            
+            gameState.remainingSteps = gameState.maxSteps;
+        }
+        
+        // 开始游戏
+        function startGame() {
+            gameState.isPlaying = true;
+            startCountdown();
+        }
+        
+        // 开始倒计时
+        function startCountdown() {
+            // 清除现有的计时器（如果有）
+            if (gameState.countdownInterval) {
+                clearInterval(gameState.countdownInterval);
+            }
+            
+            // 重置时间显示
+            updateTimeDisplay();
+            
+            // 设置新的计时器
+            gameState.countdownInterval = setInterval(() => {
+                gameState.remainingTime--;
+                
+                // 更新时间显示
+                updateTimeDisplay();
+                
+                // 检查时间是否用完
+                if (gameState.remainingTime <= 0) {
+                    clearInterval(gameState.countdownInterval);
+                    if (gameState.score < gameState.targetScore) {
+                        showFailOverlay();
+                    }
+                }
+            }, 1000);
+        }
+        
+        // 更新时间显示
+        function updateTimeDisplay() {
+            const minutes = Math.floor(gameState.remainingTime / 60);
+            const seconds = gameState.remainingTime % 60;
+            timeRemainingDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // 时间警告效果
+            if (gameState.remainingTime <= 60) {
+                countdownContainer.classList.add('time-warning');
+            } else {
+                countdownContainer.classList.remove('time-warning');
+            }
+        }
+        
+        // 获取单元格元素
+        function getCellElement(row, col) {
+            return document.querySelector(`.game-cell[data-row="${row}"][data-col="${col}"]`);
+        }
+        
+        // 处理单元格点击
+        function handleCellClick(event) {
+            if (!gameState.isPlaying || gameState.isProcessing || gameState.remainingSteps <= 0 || gameState.remainingTime <= 0) {
+                return;
+            }
+            
+            const cell = event.currentTarget;
+            const row = parseInt(cell.dataset.row);
+            const col = parseInt(cell.dataset.col);
+            
+            // 如果没有选中的单元格，选中当前单元格
+            if (!gameState.selectedCell) {
+                gameState.selectedCell = { row, col };
+                cell.classList.add('selected');
+                return;
+            }
+            
+            // 如果点击的是已经选中的单元格，取消选择
+            if (gameState.selectedCell.row === row && gameState.selectedCell.col === col) {
+                gameState.selectedCell = null;
+                cell.classList.remove('selected');
+                return;
+            }
+            
+            // 检查是否相邻
+            const isAdjacent = 
+                (Math.abs(gameState.selectedCell.row - row) === 1 && gameState.selectedCell.col === col) ||
+                (Math.abs(gameState.selectedCell.col - col) === 1 && gameState.selectedCell.row === row);
+            
+            if (isAdjacent) {
+                // 执行交换检测流程
+                executeSwapWithValidation(gameState.selectedCell.row, gameState.selectedCell.col, row, col);
+            } else {
+                // 如果不相邻，选中新的单元格
+                const selectedCellElement = getCellElement(gameState.selectedCell.row, gameState.selectedCell.col);
+                selectedCellElement.classList.remove('selected');
+                
+                gameState.selectedCell = { row, col };
+                cell.classList.add('selected');
+            }
+        }
+        
+        // 交换检测流程
+        function executeSwapWithValidation(row1, col1, row2, col2) {
+            // 取消选中状态
+            const selectedCellElement = getCellElement(row1, col1);
+            selectedCellElement.classList.remove('selected');
+            gameState.selectedCell = null;
+            
+            // 保存原始状态，用于可能的撤销
+            const originalType1 = gameState.grid[row1][col1];
+            const originalType2 = gameState.grid[row2][col2];
+            
+            // 执行交换
+            swapCells(row1, col1, row2, col2);
+            
+            // 检查是否有匹配
+            const hasValidMatch = checkForValidMatches();
+            
+            if (!hasValidMatch) {
+                // 执行回滚
+                rollbackSwap(row1, col1, row2, col2, originalType1, originalType2);
+            } else {
+                // 减少步数
+                gameState.remainingSteps--;
+                remainingStepsDisplay.textContent = gameState.remainingSteps;
+                
+                // 处理匹配
+                checkAndProcessMatches();
+                
+                // 检查是否达到目标分数
+                checkLevelCompletion();
+                
+                // 检查是否用完步数
+                if (gameState.remainingSteps <= 0 && gameState.score < gameState.targetScore) {
+                    clearInterval(gameState.countdownInterval);
+                    showFailOverlay();
+                }
+            }
+        }
+        
+        // 回滚交换
+        function rollbackSwap(row1, col1, row2, col2, originalType1, originalType2) {
+            // 交换回来数据
+            gameState.grid[row1][col1] = originalType1;
+            gameState.grid[row2][col2] = originalType2;
+            
+            // 获取单元格元素
+            const cell1 = getCellElement(row1, col1);
+            const cell2 = getCellElement(row2, col2);
+            
+            // 添加回滚效果
+            cell1.classList.add('invalid-swap');
+            cell2.classList.add('invalid-swap');
+            
+            // 应用原始样式
+            updateCellStyle(cell1, originalType1);
+            updateCellStyle(cell2, originalType2);
+            
+            // 移除无效交换样式
+            setTimeout(() => {
+                cell1.classList.remove('invalid-swap');
+                cell2.classList.remove('invalid-swap');
+            }, 300);
+        }
+        
+        // 更新单元格样式
+        function updateCellStyle(cell, cellType) {
+            // 移除炸弹和大魔王类
+            cell.classList.remove('bomb', 'demon-king');
+            
+            // 应用新样式
+            const typeInfo = config.cellTypes[cellType];
+            if (typeInfo.isDemonKing) {
+                cell.classList.add('demon-king');
+                cell.style.backgroundColor = '';
+            } else if (typeInfo.isBomb) {
+                cell.classList.add('bomb');
+                cell.style.backgroundColor = '';
+            } else {
+                cell.style.backgroundColor = typeInfo.color;
+            }
+            
+            // 更新图标
+            cell.innerHTML = `<i class="fas ${typeInfo.icon} text-white"></i>`;
+        }
+        
+        // 检查是否有有效的匹配
+        function checkForValidMatches() {
+            const matches = findMatches();
+            const bombExplosions = findBombExplosions(matches);
+            const demonKingExplosions = findDemonKingExplosions(matches);
+            
+            return matches.length > 0 || bombExplosions.length > 0 || demonKingExplosions.length > 0;
+        }
+        
+        // 交换单元格
+        function swapCells(row1, col1, row2, col2) {
+            // 更新数据
+            const temp = gameState.grid[row1][col1];
+            gameState.grid[row1][col1] = gameState.grid[row2][col2];
+            gameState.grid[row2][col2] = temp;
+            
+            // 更新UI
+            const cell1 = getCellElement(row1, col1);
+            const cell2 = getCellElement(row2, col2);
+            
+            // 交换样式和内容
+            updateCellStyle(cell1, gameState.grid[row1][col1]);
+            updateCellStyle(cell2, gameState.grid[row2][col2]);
+        }
+        
+        // 检查并处理匹配 - 简化版，移除级联逻辑
+        function checkAndProcessMatches() {
+            if (gameState.isProcessing) return;
+            gameState.isProcessing = true;
+            
+            const matches = findMatches();
+            const bombExplosions = findBombExplosions(matches);
+            const demonKingExplosions = findDemonKingExplosions(matches);
+            
+            if (demonKingExplosions.length > 0) {
+                // 处理大魔王头像爆炸
+                processDemonKingExplosions(demonKingExplosions);
+            } else if (bombExplosions.length > 0) {
+                // 处理炸弹爆炸
+                processBombExplosions(bombExplosions);
+            } else if (matches.length > 0) {
+                // 高亮显示匹配的单元格
+                matches.forEach(match => {
+                    const cell = getCellElement(match.row, match.col);
+                    cell.classList.add('matching');
+                });
+                
+                // 计算得分
+                gameState.score += matches.length * config.pointsPerCell;
+                scoreDisplay.textContent = gameState.score;
+                
+                // 更新进度条
+                updateScoreProgress();
+                
+                // 移除匹配的单元格
+                setTimeout(() => {
+                    removeMatches(matches);
+                    
+                    // 让上方的单元格下落 - 基础下落效果
+                    dropCellsDown();
+                    
+                    // 检查是否还有新的匹配
+                    setTimeout(() => {
+                        gameState.isProcessing = false;
+                        checkAndProcessMatches();
+                    }, 100);
+                }, config.eliminationDuration);
+            } else {
+                gameState.isProcessing = false;
+            }
+        }
+        
+        // 更新得分进度条
+        function updateScoreProgress() {
+            const progress = Math.min((gameState.score / gameState.targetScore) * 100, 100);
+            scoreProgress.style.width = `${progress}%`;
+        }
+        
+        // 基础下落效果 - 简化版
+        function dropCellsDown() {
+            // 对每一列进行处理
+            for (let col = 0; col < config.gridSize; col++) {
+                let emptySpaces = 0;
+                
+                // 从底部向上扫描
+                for (let row = config.gridSize - 1; row >= 0; row--) {
+                    if (gameState.grid[row][col] === null) {
+                        emptySpaces++;
+                    } else if (emptySpaces > 0) {
+                        // 有空格，需要下落
+                        gameState.grid[row + emptySpaces][col] = gameState.grid[row][col];
+                        gameState.grid[row][col] = null;
+                        
+                        // 获取单元格元素并添加下落动画
+                        const cell = getCellElement(row + emptySpaces, col);
+                        cell.classList.add('falling');
+                        
+                        // 更新UI
+                        updateCellStyle(cell, gameState.grid[row + emptySpaces][col]);
+                        
+                        // 清除原始位置的内容
+                        const originalCell = getCellElement(row, col);
+                        originalCell.innerHTML = '';
+                        originalCell.style.backgroundColor = 'transparent';
+                        originalCell.classList.remove('bomb', 'demon-king');
+                    }
+                }
+                
+                // 在顶部填充新的单元格
+                for (let row = 0; row < emptySpaces; row++) {
+                    let cellType;
+                    if (Math.random() < config.demonKingChance) {
+                        cellType = config.cellTypes.length - 1; // 大魔王头像类型的索引
+                    } else if (Math.random() < config.bombChance) {
+                        cellType = config.cellTypes.length - 2; // 炸弹类型的索引
+                    } else {
+                        cellType = Math.floor(Math.random() * (config.cellTypes.length - 2));
+                    }
+                    
+                    gameState.grid[row][col] = cellType;
+                    
+                    // 获取单元格元素并添加下落动画
+                    const cell = getCellElement(row, col);
+                    cell.classList.add('falling');
+                    
+                    // 更新UI
+                    updateCellStyle(cell, gameState.grid[row][col]);
+                }
+            }
+            
+            // 动画结束后移除下落类
+            setTimeout(() => {
+                const fallingCells = document.querySelectorAll('.game-cell.falling');
+                fallingCells.forEach(cell => {
+                    cell.classList.remove('falling');
+                });
+            }, config.dropDuration);
+        }
+        
+        // 查找匹配
+        function findMatches() {
+            const matches = [];
+            const marked = Array(config.gridSize).fill().map(() => Array(config.gridSize).fill(false));
+            
+            // 检查水平匹配
+            for (let row = 0; row < config.gridSize; row++) {
+                let count = 1;
+                for (let col = 1; col < config.gridSize; col++) {
+                    // 跳过炸弹和大魔王头像方块的匹配检查
+                    if (config.cellTypes[gameState.grid[row][col]].isBomb || 
+                        config.cellTypes[gameState.grid[row][col]].isDemonKing ||
+                        config.cellTypes[gameState.grid[row][col-1]].isBomb ||
+                        config.cellTypes[gameState.grid[row][col-1]].isDemonKing) {
+                        if (count >= 3) {
+                            for (let i = 0; i < count; i++) {
+                                if (!marked[row][col-1-i] && !config.cellTypes[gameState.grid[row][col-1-i]].isBomb && !config.cellTypes[gameState.grid[row][col-1-i]].isDemonKing) {
+                                    matches.push({ row, col: col-1-i });
+                                    marked[row][col-1-i] = true;
+                                }
+                            }
+                        }
+                        count = 1;
+                        continue;
+                    }
+                    
+                    if (gameState.grid[row][col] === gameState.grid[row][col-1]) {
+                        count++;
+                    } else {
+                        if (count >= 3) {
+                            for (let i = 0; i < count; i++) {
+                                if (!marked[row][col-1-i] && !config.cellTypes[gameState.grid[row][col-1-i]].isBomb && !config.cellTypes[gameState.grid[row][col-1-i]].isDemonKing) {
+                                    matches.push({ row, col: col-1-i });
+                                    marked[row][col-1-i] = true;
+                                }
+                            }
+                        }
+                        count = 1;
+                    }
+                }
+                // 检查最后一组
+                if (count >= 3) {
+                    for (let i = 0; i < count; i++) {
+                        if (!marked[row][config.gridSize-1-i] && !config.cellTypes[gameState.grid[row][config.gridSize-1-i]].isBomb && !config.cellTypes[gameState.grid[row][config.gridSize-1-i]].isDemonKing) {
+                            matches.push({ row, col: config.gridSize-1-i });
+                            marked[row][config.gridSize-1-i] = true;
+                        }
+                    }
+                }
+            }
+            
+            // 检查垂直匹配
+            for (let col = 0; col < config.gridSize; col++) {
+                let count = 1;
+                for (let row = 1; row < config.gridSize; row++) {
+                    // 跳过炸弹和大魔王头像方块的匹配检查
+                    if (config.cellTypes[gameState.grid[row][col]].isBomb || 
+                        config.cellTypes[gameState.grid[row][col]].isDemonKing ||
+                        config.cellTypes[gameState.grid[row-1][col]].isBomb ||
+                        config.cellTypes[gameState.grid[row-1][col]].isDemonKing) {
+                        if (count >= 3) {
+                            for (let i = 0; i < count; i++) {
+                                if (!marked[row-1-i][col] && !config.cellTypes[gameState.grid[row-1-i][col]].isBomb && !config.cellTypes[gameState.grid[row-1-i][col]].isDemonKing) {
+                                    matches.push({ row: row-1-i, col });
+                                    marked[row-1-i][col] = true;
+                                }
+                            }
+                        }
+                        count = 1;
+                        continue;
+                    }
+                    
+                    if (gameState.grid[row][col] === gameState.grid[row-1][col]) {
+                        count++;
+                    } else {
+                        if (count >= 3) {
+                            for (let i = 0; i < count; i++) {
+                                if (!marked[row-1-i][col] && !config.cellTypes[gameState.grid[row-1-i][col]].isBomb && !config.cellTypes[gameState.grid[row-1-i][col]].isDemonKing) {
+                                    matches.push({ row: row-1-i, col });
+                                    marked[row-1-i][col] = true;
+                                }
+                            }
+                        }
+                        count = 1;
+                    }
+                }
+                // 检查最后一组
+                if (count >= 3) {
+                    for (let i = 0; i < count; i++) {
+                        if (!marked[config.gridSize-1-i][col] && !config.cellTypes[gameState.grid[config.gridSize-1-i][col]].isBomb && !config.cellTypes[gameState.grid[config.gridSize-1-i][col]].isDemonKing) {
+                            matches.push({ row: config.gridSize-1-i, col });
+                            marked[config.gridSize-1-i][col] = true;
+                        }
+                    }
+                }
+            }
+            
+            return matches;
+        }
+        
+        // 查找需要爆炸的炸弹
+        function findBombExplosions(matches) {
+            const bombExplosions = [];
+            
+            // 检查匹配中是否包含炸弹
+            matches.forEach(match => {
+                const cellType = gameState.grid[match.row][match.col];
+                if (config.cellTypes[cellType].isBomb) {
+                    bombExplosions.push({ row: match.row, col: match.col });
+                }
+            });
+            
+            // 检查是否有炸弹与其他方块相邻匹配
+            for (let row = 0; row < config.gridSize; row++) {
+                for (let col = 0; col < config.gridSize; col++) {
+                    const cellType = gameState.grid[row][col];
+                    if (config.cellTypes[cellType].isBomb) {
+                        // 检查炸弹是否与匹配的方块相邻
+                        const adjacentCells = [
+                            { row: row-1, col },
+                            { row: row+1, col },
+                            { row, col: col-1 },
+                            { row, col: col+1 }
+                        ];
+                        
+                        for (const adj of adjacentCells) {
+                            if (adj.row >= 0 && adj.row < config.gridSize && adj.col >= 0 && adj.col < config.gridSize) {
+                                // 检查相邻单元格是否在匹配列表中
+                                const isAdjacentInMatches = matches.some(match => 
+                                    match.row === adj.row && match.col === adj.col
+                                );
+                                
+                                if (isAdjacentInMatches) {
+                                    bombExplosions.push({ row, col });
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return bombExplosions;
+        }
+        
+        // 查找需要触发整行整列消除的大魔王头像
+        function findDemonKingExplosions(matches) {
+            const demonKingExplosions = [];
+            
+            // 检查匹配中是否包含大魔王头像
+            matches.forEach(match => {
+                const cellType = gameState.grid[match.row][match.col];
+                if (config.cellTypes[cellType].isDemonKing) {
+                    demonKingExplosions.push({ row: match.row, col: match.col });
+                }
+            });
+            
+            // 检查是否有大魔王头像与其他方块相邻匹配
+            for (let row = 0; row < config.gridSize; row++) {
+                for (let col = 0; col < config.gridSize; col++) {
+                    const cellType = gameState.grid[row][col];
+                    if (config.cellTypes[cellType].isDemonKing) {
+                        // 检查大魔王头像是否与匹配的方块相邻
+                        const adjacentCells = [
+                            { row: row-1, col },
+                            { row: row+1, col },
+                            { row, col: col-1 },
+                            { row, col: col+1 }
+                        ];
+                        
+                        for (const adj of adjacentCells) {
+                            if (adj.row >= 0 && adj.row < config.gridSize && adj.col >= 0 && adj.col < config.gridSize) {
+                                // 检查相邻单元格是否在匹配列表中
+                                const isAdjacentInMatches = matches.some(match => 
+                                    match.row === adj.row && match.col === adj.col
+                                );
+                                
+                                if (isAdjacentInMatches) {
+                                    demonKingExplosions.push({ row, col });
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return demonKingExplosions;
+        }
+        
+        // 处理炸弹爆炸 - 简化版
+        function processBombExplosions(bombExplosions) {
+            const explosionCells = [];
+            
+            // 找出所有需要爆炸的单元格
+            bombExplosions.forEach(bomb => {
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        const row = bomb.row + dr;
+                        const col = bomb.col + dc;
+                        
+                        if (row >= 0 && row < config.gridSize && col >= 0 && col < config.gridSize) {
+                            explosionCells.push({ row, col });
+                        }
+                    }
+                }
+            });
+            
+            // 高亮显示爆炸的单元格
+            explosionCells.forEach(cell => {
+                const element = getCellElement(cell.row, cell.col);
+                element.classList.add('matching');
+            });
+            
+            // 计算得分
+            gameState.score += explosionCells.length * config.pointsPerCell;
+            scoreDisplay.textContent = gameState.score;
+            
+            // 更新进度条
+            updateScoreProgress();
+            
+            // 移除爆炸的单元格
+            setTimeout(() => {
+                removeMatches(explosionCells);
+                
+                // 让上方的单元格下落
+                dropCellsDown();
+                
+                // 检查是否还有新的匹配
+                setTimeout(() => {
+                    gameState.isProcessing = false;
+                    checkAndProcessMatches();
+                }, 100);
+            }, config.eliminationDuration);
+        }
+        
+        // 处理大魔王头像爆炸 - 简化版
+        function processDemonKingExplosions(demonKingExplosions) {
+            const explosionCells = [];
+            
+            // 找出所有需要爆炸的单元格
+            demonKingExplosions.forEach(demon => {
+                // 消除整行
+                for (let col = 0; col < config.gridSize; col++) {
+                    explosionCells.push({ row: demon.row, col });
+                }
+                
+                // 消除整列
+                for (let row = 0; row < config.gridSize; row++) {
+                    explosionCells.push({ row, col: demon.col });
+                }
+            });
+            
+            // 高亮显示爆炸的单元格
+            explosionCells.forEach(cell => {
+                const element = getCellElement(cell.row, cell.col);
+                element.classList.add('matching');
+            });
+            
+            // 计算得分
+            gameState.score += explosionCells.length * config.pointsPerCell;
+            scoreDisplay.textContent = gameState.score;
+            
+            // 更新进度条
+            updateScoreProgress();
+            
+            // 移除爆炸的单元格
+            setTimeout(() => {
+                removeMatches(explosionCells);
+                
+                // 让上方的单元格下落
+                dropCellsDown();
+                
+                // 检查是否还有新的匹配
+                setTimeout(() => {
+                    gameState.isProcessing = false;
+                    checkAndProcessMatches();
+                }, 100);
+            }, config.eliminationDuration);
+        }
+        
+        // 移除匹配的单元格
+        function removeMatches(matches) {
+            matches.forEach(match => {
+                gameState.grid[match.row][match.col] = null;
+                const cell = getCellElement(match.row, match.col);
+                cell.innerHTML = '';
+                cell.style.backgroundColor = 'transparent';
+                cell.classList.remove('matching', 'bomb', 'demon-king');
+            });
+        }
+        
+        // 检查关卡完成情况
+        function checkLevelCompletion() {
+            if (gameState.score >= gameState.targetScore && gameState.isPlaying) {
+                // 清除倒计时
+                clearInterval(gameState.countdownInterval);
+                
+                // 显示成功弹窗
+                showSuccessOverlay();
+            }
+        }
+        
+        // 显示成功弹窗
+        function showSuccessOverlay() {
+            completedLevelDisplay.textContent = gameState.currentLevel;
+            successScoreDisplay.textContent = gameState.score;
+            remainingStepsValueDisplay.textContent = gameState.remainingSteps;
+            successOverlay.classList.add('active');
+        }
+        
+        // 显示失败弹窗
+        function showFailOverlay() {
+            failedLevelDisplay.textContent = gameState.currentLevel;
+            failScoreDisplay.textContent = gameState.score;
+            requiredScoreDisplay.textContent = gameState.targetScore;
+            failOverlay.classList.add('active');
+        }
+        
+        // 进入下一关
+        function goToNextLevel() {
+            // 隐藏弹窗
+            successOverlay.classList.remove('active');
+            
+            // 增加关卡
+            gameState.currentLevel++;
+            
+            // 显示关卡过渡标题
+            showLevelTransition();
+            
+            // 1.5秒后加载下一关
+            setTimeout(() => {
+                // 重新初始化游戏
+                resetAndInitGame();
+            }, 1500);
+        }
+        
+        // 重玩本关
+        function retryLevel() {
+            // 隐藏弹窗
+            failOverlay.classList.remove('active');
+            
+            // 重新初始化游戏
+            resetAndInitGame();
+        }
+        
+        // 重置并初始化游戏
+        function resetAndInitGame() {
+            // 显示加载遮罩
+            loadingOverlay.style.display = 'flex';
+            retryLoadButton.style.display = 'none';
+            
+            // 重新初始化游戏
+            initGame();
+        }
+        
+        // 显示关卡过渡标题
+        function showLevelTransition() {
+            levelTransitionTitle.textContent = `第${gameState.currentLevel}关`;
+            levelTransitionOverlay.classList.add('active');
+            
+            // 1.5秒后隐藏过渡标题
+            setTimeout(() => {
+                levelTransitionOverlay.classList.remove('active');
+            }, 1500);
+        }
+        
+        // 显示游戏规则
+        function showRules() {
+            rulesOverlay.classList.add('active');
+        }
+        
+        // 隐藏游戏规则
+        function hideRules() {
+            rulesOverlay.classList.remove('active');
+        }
+        
+        // 页面加载完成后初始化游戏
+        document.addEventListener('DOMContentLoaded', function() {
+            // 开始初始化游戏
+            initGame();
+        });
+    </script>
+</body>
+</html>

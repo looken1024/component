@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日历助手</title>
+    <script src="https://cdn.tailwindcss.com/3.3.3"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        
+        .calendar-day {
+            transition: all 0.2s ease;
+            min-height: 80px;
+            position: relative;
+        }
+        
+        .calendar-day:hover {
+            background-color: #f1f5f9;
+            transform: scale(1.02);
+        }
+        
+        .current-day {
+            background-color: #fee2e2;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        
+        .lunar-date {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 640px) {
+            .calendar-day {
+                min-height: 60px;
+                font-size: 0.875rem;
+            }
+            
+            .lunar-date {
+                font-size: 0.625rem;
+            }
+        }
+        
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+            transition: opacity 0.3s ease;
+        }
+        
+        .modal-content {
+            background-color: #fff;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+        
+        @keyframes modalSlideIn {
+            from { 
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .close-button {
+            color: #64748b;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+        
+        .close-button:hover {
+            color: #1e293b;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-5xl">
+        <!-- 标题栏 -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-2">日历助手</h1>
+            <p class="text-gray-500">简洁美观的日历视图，支持公历和阴历显示</p>
+        </header>
+        
+        <!-- 主要内容区域 -->
+        <main class="bg-white rounded-xl shadow-md p-6 fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800" id="currentMonth">2024年6月</h2>
+                <div class="flex space-x-2">
+                    <button id="prevMonth" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                        <i class="fas fa-chevron-left text-gray-600"></i>
+                    </button>
+                    <button id="todayBtn" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                        今天
+                    </button>
+                    <button id="nextMonth" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                        <i class="fas fa-chevron-right text-gray-600"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 星期标题 -->
+            <div class="grid grid-cols-7 mb-2">
+                <div class="text-center font-medium text-gray-500 py-2">周日</div>
+                <div class="text-center font-medium text-gray-500 py-2">周一</div>
+                <div class="text-center font-medium text-gray-500 py-2">周二</div>
+                <div class="text-center font-medium text-gray-500 py-2">周三</div>
+                <div class="text-center font-medium text-gray-500 py-2">周四</div>
+                <div class="text-center font-medium text-gray-500 py-2">周五</div>
+                <div class="text-center font-medium text-gray-500 py-2">周六</div>
+            </div>
+            
+            <!-- 日历格子 -->
+            <div class="grid grid-cols-7 gap-1" id="calendarDays">
+                <!-- 日历格子将通过JavaScript动态生成 -->
+            </div>
+        </main>
+    </div>
+    
+    <!-- 模态对话框 -->
+    <div id="holidayModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3 class="text-xl font-bold text-gray-800 mb-4" id="modalTitle">节日详情</h3>
+            <div class="mb-4">
+                <p class="text-gray-600 mb-2"><strong>日期：</strong><span id="modalDate"></span></p>
+                <p class="text-gray-600 mb-2"><strong>节日：</strong><span id="modalHoliday"></span></p>
+            </div>
+            <div>
+                <p class="text-gray-700" id="modalDescription">节日介绍内容将显示在这里...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 页脚 -->
+    <footer class="mt-12 py-6 text-center text-gray-500 text-sm">
+        <p>created by <a href="https://space.coze.cn" class="text-blue-500 hover:underline">coze space</a></p>
+        <p class="mt-1">页面内容均由 AI 生成，仅供参考</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化变量
+            let currentDate = new Date();
+            
+            // 获取DOM元素
+            const calendarDays = document.getElementById('calendarDays');
+            const currentMonthEl = document.getElementById('currentMonth');
+            const prevMonthBtn = document.getElementById('prevMonth');
+            const nextMonthBtn = document.getElementById('nextMonth');
+            const todayBtn = document.getElementById('todayBtn');
+            const modal = document.getElementById('holidayModal');
+            const closeModal = document.getElementsByClassName('close-button')[0];
+            const modalTitle = document.getElementById('modalTitle');
+            const modalDate = document.getElementById('modalDate');
+            const modalHoliday = document.getElementById('modalHoliday');
+            const modalDescription = document.getElementById('modalDescription');
+            
+            // 初始化日历
+            renderCalendar();
+            
+            // 事件监听器
+            prevMonthBtn.addEventListener('click', () => {
+                currentDate.setMonth(currentDate.getMonth() - 1);
+                renderCalendar();
+            });
+            
+            nextMonthBtn.addEventListener('click', () => {
+                currentDate.setMonth(currentDate.getMonth() + 1);
+                renderCalendar();
+            });
+            
+            todayBtn.addEventListener('click', () => {
+                currentDate = new Date();
+                renderCalendar();
+            });
+            
+            // 关闭模态框
+            closeModal.addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+            
+            // 点击模态框外部关闭
+            window.addEventListener('click', (event) => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+            
+            // 渲染日历 - 修改为仅显示当月日期
+            function renderCalendar() {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+                
+                // 更新当前月份显示
+                currentMonthEl.textContent = `${year}年${month + 1}月`;
+                
+                // 清空日历
+                calendarDays.innerHTML = '';
+                
+                // 获取当月第一天和最后一天
+                const firstDay = new Date(year, month, 1);
+                const lastDay = new Date(year, month + 1, 0);
+                
+                // 获取当月第一天是星期几
+                const firstDayIndex = firstDay.getDay();
+                
+                // 获取当月的天数
+                const daysInMonth = lastDay.getDate();
+                
+                // 渲染空白格子直到当月第一天
+                for (let i = 0; i < firstDayIndex; i++) {
+                    const emptyDayEl = document.createElement('div');
+                    emptyDayEl.classList.add('p-1', 'border', 'border-transparent', 'rounded-lg');
+                    calendarDays.appendChild(emptyDayEl);
+                }
+                
+                // 渲染当月的日期
+                const today = new Date();
+                const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+                
+                for (let i = 1; i <= daysInMonth; i++) {
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                    const isToday = isCurrentMonth && today.getDate() === i;
+                    
+                    const dayEl = document.createElement('div');
+                    dayEl.classList.add('calendar-day', 'p-1', 'cursor-pointer', 'border', 'border-transparent', 'hover:border-red-200', 'rounded-lg');
+                    
+                    if (isToday) {
+                        dayEl.classList.add('current-day');
+                    }
+                    
+                    // 计算阴历日期
+                    const lunarDate = getLunarDate(year, month + 1, i);
+                    
+                    // 检查是否是节假日
+                    const holiday = getHoliday(year, month + 1, i);
+                    
+                    // 根据是否是重要节日决定字体颜色
+                    const textColorClass = holiday && holiday.isImportant ? 'text-red-600' : 'text-gray-800';
+                    
+                    dayEl.innerHTML = `
+                        <div class="text-sm font-medium ${textColorClass}">${i}</div>
+                        <div class="lunar-date">${lunarDate}</div>
+                    `;
+                    
+                    // 添加点击事件
+                    dayEl.addEventListener('click', () => {
+                        showHolidayModal(year, month + 1, i, holiday);
+                    });
+                    
+                    calendarDays.appendChild(dayEl);
+                }
+            }
+            
+            // 简单的阴历转换函数
+            function getLunarDate(year, month, day) {
+                // 这里使用简化的方法来模拟阴历转换
+                // 实际应用中应该使用更精确的农历转换库
+                
+                // 农历日期
+                const lunarDays = ['', '初一', '初二', '初三', '初四', '初五', '初六', '初七', '初八', '初九', '初十',
+                                  '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十',
+                                  '廿一', '廿二', '廿三', '廿四', '廿五', '廿六', '廿七', '廿八', '廿九', '三十'];
+                
+                // 简化计算：使用公历日期与农历日期的近似对应关系
+                const date = new Date(year, month - 1, day);
+                const daysSince2000 = Math.floor((date - new Date(2000, 0, 1)) / (1000 * 60 * 60 * 24));
+                
+                // 假设农历一年约354天，这里使用简单的偏移来模拟
+                const lunarDayOffset = (daysSince2000 % 354) % 30;
+                
+                // 确保日期在有效范围内
+                const lunarDay = Math.min(30, Math.max(1, lunarDayOffset + 1));
+                
+                return `${lunarDays[lunarDay]}`;
+            }
+            
+            // 获取节假日信息，并标记重要节日
+            function getHoliday(year, month, day) {
+                // 定义一些重要的节假日及其介绍，标记重要节日
+                const holidays = {
+                    '1-1': {
+                        name: '元旦',
+                        description: '元旦，即公历的1月1日，是世界多数国家通称的"新年"。元，谓"始"，凡数之始称为"元"；旦，谓"日"；"元旦"意即"初始之日"。元旦又称"三元"，即岁之元、月之元、时之元。',
+                        isImportant: true
+                    },
+                    '2-14': {
+                        name: '情人节',
+                        description: '情人节，又称圣瓦伦丁节或圣华伦泰节，日期在每年公历的2月14日，是西方国家的传统节日之一，起源于基督教。如今已经成为全世界著名的浪漫节日，但是不同国家的人们表达爱意的方式却各不相同。',
+                        isImportant: false
+                    },
+                    '3-8': {
+                        name: '妇女节',
+                        description: '国际妇女节全称"联合国妇女权益和国际和平日"，在中国又称"国际劳动妇女节"、"三八节"和"三八妇女节"。是在每年的3月8日为庆祝妇女在经济、政治和社会等领域作出的重要贡献和取得的巨大成就而设立的节日。',
+                        isImportant: true
+                    },
+                    '3-12': {
+                        name: '植树节',
+                        description: '植树节是按照法律规定宣传保护树木，并组织动员群众积极参加以植树造林为活动内容的节日。按时间长短可分为植树日、植树周和植树月，共称为国际植树节。提倡通过这种活动，激发人们爱林造林的热情、意识到环保的重要性。',
+                        isImportant: false
+                    },
+                    '4-1': {
+                        name: '愚人节',
+                        description: '愚人节也称万愚节、幽默节，愚人节。节期为公历4月1日，是从19世纪开始在西方兴起流行的民间节日，并未被任何国家认定为法定节日。在这一天人们以各种方式互相欺骗和捉弄，往往在玩笑的最后才揭穿并宣告捉弄对象为"愚人"。',
+                        isImportant: false
+                    },
+                    '5-1': {
+                        name: '劳动节',
+                        description: '国际劳动节又称"五一国际劳动节"、"国际示威游行日"，是世界上80多个国家的全国性节日。定在每年的五月一日。它是全世界劳动人民共同拥有的节日。',
+                        isImportant: true
+                    },
+                    '5-4': {
+                        name: '青年节',
+                        description: '五四青年节源于中国1919年反帝爱国的"五四运动"，五四爱国运动是一次彻底的反对帝国主义和封建主义的爱国运动，也是中国新民主主义革命的开始。1939年，陕甘宁边区西北青年救国联合会规定5月4日为中国青年节。',
+                        isImportant: true
+                    },
+                    '6-1': {
+                        name: '儿童节',
+                        description: '国际儿童节定于每年的6月1日。为了悼念1942年6月10日的利迪策惨案和全世界所有在战争中死难的儿童，反对虐杀和毒害儿童，以及保障儿童权利。',
+                        isImportant: true
+                    },
+                    '7-1': {
+                        name: '建党节',
+                        description: '中国共产党于1921年7月23日成立后，在反动军阀政府的残暴统治之下，只能处于秘密状态，没有公开进行活动的环境。在大革命时期，党忙于国共合作、开展工农运动和支援北伐战争，没有条件对党的诞生进行纪念。',
+                        isImportant: true
+                    },
+                    '8-1': {
+                        name: '建军节',
+                        description: '八一建军节是中国人民解放军建军纪念日，定为每年的八月一日，由中国人民革命军事委员会设立，为纪念中国工农红军成立的节日。',
+                        isImportant: true
+                    },
+                    '9-10': {
+                        name: '教师节',
+                        description: '教师节，旨在肯定教师为教育事业所做的贡献。在中国近现代史上，多次以不同的日期作为过教师节。直至1985年，第六届全国人大常委会第九次会议通过了国务院关于建立教师节的议案，才真正确定了1985年9月10日为中国第一个教师节。',
+                        isImportant: true
+                    },
+                    '10-1': {
+                        name: '国庆节',
+                        description: '国庆节是由一个国家制定的用来纪念国家本身的法定假日。它们通常是这个国家的独立、宪法的签署、元首诞辰或其他有重大纪念意义的周年纪念日；也有些是这个国家守护神的圣人节。',
+                        isImportant: true
+                    },
+                    '12-25': {
+                        name: '圣诞节',
+                        description: '圣诞节又称耶诞节，译名为"基督弥撒"，它源自古罗马人迎接新年的农神节，与基督教本无关系。在基督教盛行罗马帝国后，教廷随波逐流地将这种民俗节日纳入基督教体系，同时以庆祝耶稣的降生。',
+                        isImportant: false
+                    }
+                };
+                
+                // 检查是否是节假日
+                const key = `${month}-${day}`;
+                return holidays[key] || null;
+            }
+            
+            // 显示节假日模态框
+            function showHolidayModal(year, month, day, holiday) {
+                const dateStr = `${year}年${month}月${day}日`;
+                modalTitle.textContent = '日期详情';
+                modalDate.textContent = dateStr;
+                
+                if (holiday) {
+                    modalHoliday.textContent = holiday.name;
+                    modalDescription.textContent = holiday.description;
+                } else {
+                    modalHoliday.textContent = '无特殊节日';
+                    modalDescription.textContent = '这一天没有特别的节日或纪念日。';
+                }
+                
+                modal.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
